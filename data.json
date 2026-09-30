@@ -83,7 +83,10 @@
       "size": "s",
       "folderId": null,
       "created": 1790752264150,
-      "updated": 1790752264150
+      "updated": 1790752264150,
+      "imgSizes": {
+        "images/munrnsxtui6z8.png": 100
+      }
     }
   ]
 }
