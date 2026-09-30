@@ -41,6 +41,7 @@
   .note.dragging{opacity:.4}
   .note-text{white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
   .note-text:empty{display:none}
+  .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
   .note-meta{font-size:11px;color:var(--muted)}
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
@@ -548,10 +549,33 @@ function swatchRow(current, onPick){
   });
   return wrap;
 }
-
+  
+// Turns web links in a note into clickable links that open in a new tab
+function linkify(text){
+  const frag = document.createDocumentFragment();
+  const re = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    let url = m[0].replace(/[.,!?;:)\]'"]+$/, "");   // ignore punctuation at the end
+    frag.append(text.slice(last, m.index));
+    const a = el("a", null, url);
+    a.href = url.toLowerCase().startsWith("www.") ? "https://" + url : url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.draggable = false;
+    a.addEventListener("click", e => e.stopPropagation());
+    a.addEventListener("dblclick", e => e.stopPropagation());
+    frag.append(a);
+    last = m.index + url.length;
+  }
+  frag.append(text.slice(last));
+  return frag;
+}
+  
 function noteEl(n){
   const card = el("div", "note");
-  const txt = el("div", "note-text", n.text || "");
+  const txt = el("div", "note-text");
+  if (n.text) txt.append(linkify(n.text));
   const imgs = el("div", "thumbs");
   (n.images || []).forEach(p => imgs.appendChild(
     thumb(localImg[p] || p, editMode ? () => removeNoteImage(n, p) : null, CONFIG.owner ? rawUrl(p) : null)));
