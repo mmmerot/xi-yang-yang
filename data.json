@@ -16,10 +16,10 @@
     },
     {
       "id": "munhq6egv57hr",
-      "text": "reminder: to make it the smallest possible pixel size, a button should be 1 pixel tall and wide. \n\nwhat to do next: \n- refer to lospec for palettes: https://lospec.com/palette-list\n\n- download aseprite (maybe i shld just buy it as this point) or libresprite\n\nperspective of scenes:\n- i am imaging a top down scene, think like the game itself. not really isometric but i can give iso a try in the future.",
+      "text": "reminder: to make it the smallest possible pixel size, a button should be 1 pixel tall and wide. \n\nwhat to do next: \n- refer to lospec for palettes:\nhttps://lospec.com/palette-list\n\n- download aseprite (maybe i shld just buy it as this point) or libresprite\n\nperspective of scenes:\n- i am imaging a top down scene, think like the game itself. not really isometric but i can give iso a try in the future.",
       "folderId": "munhgm88o89vl",
       "created": 1790735577064,
-      "updated": 1790735626901
+      "updated": 1790738929320
     }
   ]
 }
