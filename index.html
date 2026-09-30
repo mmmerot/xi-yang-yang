@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Brainstorm</title>
+<style>
+  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+  header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
+         padding:16px 24px;background:#fff;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.4px}
+  h2{margin:0 0 12px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .head-right{display:flex;align-items:center;gap:8px}
+  .status{font-size:12px;color:var(--muted);margin-right:6px}
+  button,select,input,textarea{font:inherit;font-size:13px;color:var(--text)}
+  button{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
+  button:hover{background:#f3f3f3}
+  button.icon{border:none;background:none;padding:2px 6px;color:var(--muted)}
+  button.icon:hover{color:var(--text);background:none}
+  main{max-width:1100px;margin:0 auto;padding:24px}
+  section{margin-bottom:32px}
+  .edit-only{display:none !important}
+  body.editing .edit-only{display:flex !important}
+  .composer{flex-direction:column;gap:8px;margin-bottom:32px}
+  .composer textarea{width:100%;min-height:70px;resize:vertical;padding:12px;border:1px solid var(--line);
+                     border-radius:8px;background:#fff;outline:none}
+  .composer textarea:focus,.new-folder input:focus{border-color:#bbb}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select{border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff}
+  .zone{min-height:70px;border:1px dashed transparent;border-radius:10px;padding:4px;transition:.15s}
+  .zone.over{border-color:#aaa;background:#f0f0f0}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+  .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
+        display:flex;flex-direction:column;gap:8px}
+  body.editing .note{cursor:grab}
+  .note.dragging{opacity:.4}
+  .note-text{white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
+  .note-meta{font-size:11px;color:var(--muted)}
+  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end}
+  .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
+  .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none}
+  .empty{color:var(--muted);font-size:12px;padding:14px 4px}
+  .new-folder{gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+  .new-folder input{border:1px solid var(--line);border-radius:6px;padding:6px 10px;outline:none;min-width:180px}
+  .swatches{display:flex;gap:5px;align-items:center}
+  .swatch{width:16px;height:16px;border-radius:50%;border:2px solid transparent;cursor:pointer;padding:0}
+  .swatch.sel{border-color:#222}
+  .folders{display:flex;flex-direction:column;gap:12px}
+  .folder{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;
+          background:linear-gradient(0deg,var(--tint),var(--tint)),#fff}
+  .folder.over{outline:2px dashed var(--c);outline-offset:2px}
+  .folder-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex-shrink:0}
+  .folder-name{font-weight:600}
+  .count{color:var(--muted);font-size:12px}
+  .caret{color:var(--muted);width:12px;font-size:10px}
+  .folder-tools{margin-left:auto;display:flex;gap:2px;align-items:center}
+  .folder-body{padding:0 12px 12px}
+  .folder.collapsed .folder-body{display:none}
+  .palette{display:none;margin-right:6px}
+  .palette.open{display:flex}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Brainstorm</h1>
+  <div class="head-right">
+    <span class="status" id="status"></span>
+    <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
+    <button id="authBtn">Owner login</button>
+  </div>
+</header>
+
+<main>
+  <div class="composer edit-only">
+    <textarea id="noteInput" placeholder="Jot down an idea…  (Ctrl/Cmd + Enter to add)"></textarea>
+    <div class="row">
+      <select id="noteTarget"></select>
+      <button id="addNoteBtn">Add note</button>
+    </div>
+  </div>
+
+  <section>
+    <h2>Loose notes</h2>
+    <div class="zone" id="looseZone"><div class="grid" id="looseGrid"></div></div>
+  </section>
+
+  <section>
+    <h2>Folders</h2>
+    <div class="new-folder edit-only">
+      <input id="folderInput" placeholder="New folder name">
+      <div class="swatches" id="newFolderSwatches"></div>
+      <button id="addFolderBtn">Add folder</button>
+    </div>
+    <div class="folders" id="folders"></div>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   SETTINGS: edit these 2 lines (your GitHub username + repository name)
+   ===================================================================== */
+const CONFIG = {
+  owner:  "",            // e.g. "mmmerot"
+  repo:   "",            // e.g. "xi-yang-yang"
+  branch: "main",
+  path:   "data.json"    // file where your notes are stored (created automatically)
+};
+
+/* Auto-detect owner/repo when hosted on GitHub Pages (used only if left blank above) */
+(function autodetect(){
+  const host = location.hostname;
+  if (!host.endsWith(".github.io")) return;
+  if (!CONFIG.owner) CONFIG.owner = host.split(".")[0];
+  if (!CONFIG.repo) {
+    const seg = location.pathname.split("/").filter(Boolean)[0];
+    CONFIG.repo = (seg && !seg.includes(".")) ? seg : host;
+  }
+})();
+
+const COLORS = {
+  red:"#e5484d", orange:"#f76b15", yellow:"#f5c518", green:"#30a46c",
+  blue:"#0090ff", indigo:"#3e63dd", violet:"#8e4ec6"
+};
+
+let state = { folders: [], notes: [] };
+let sha = null;
+let token = localStorage.getItem("bs_token") || "";
+let editMode = false;
+let saveTimer = null, saving = false, pending = false, dirty = false;
+let newFolderColor = "blue";
+const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
+
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const setStatus = t => $("#status").textContent = t;
+const fmtDate = ts => new Date(ts).toLocaleString("en-SG",
+  { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function iconBtn(label, title, fn){
+  const b = el("button", "icon", label);
+  b.title = title;
+  b.addEventListener("click", e => { e.stopPropagation(); fn(); });
+  return b;
+}
+function normalise(d){
+  return { folders: Array.isArray(d && d.folders) ? d.folders : [],
+           notes:   Array.isArray(d && d.notes)   ? d.notes   : [] };
+}
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(b64.replace(/\n/g, ""));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+/* ---------- GitHub storage ---------- */
+const apiUrl = () =>
+  `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${CONFIG.path}`;
+const ghHeaders = () =>
+  ({ "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" });
+
+async function loadPublic(){
+  try {
+    const r = await fetch(CONFIG.path + "?t=" + Date.now(), { cache: "no-store" });
+    if (r.ok) state = normalise(await r.json());
+  } catch (e) { /* no data yet */ }
+}
+
+async function loadFromGitHub(){
+  const r = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+  if (r.status === 404) { sha = null; return; }
+  if (!r.ok) throw new Error("Load failed (" + r.status + ")");
+  const j = await r.json();
+  sha = j.sha;
+  state = normalise(JSON.parse(b64decode(j.content)));
+}
+
+async function saveToGitHub(retry = true){
+  setStatus("Saving…");
+  const body = {
+    message: "Update notes " + new Date().toISOString(),
+    content: b64encode(JSON.stringify(state, null, 2)),
+    branch: CONFIG.branch
+  };
+  if (sha) body.sha = sha;
+  const r = await fetch(apiUrl(), {
+    method: "PUT",
+    headers: { ...ghHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    sha = (await r.json()).content.sha;
+    dirty = false;
+    setStatus("Saved ✓");
+    return;
+  }
+  if ((r.status === 409 || r.status === 422) && retry) {
+    const g = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+    sha = g.ok ? (await g.json()).sha : null;
+    return saveToGitHub(false);
+  }
+  setStatus("Save failed (" + r.status + ") – keep this tab open and try again");
+}
+
+async function flushSave(){
+  if (saving) { pending = true; return; }
+  saving = true;
+  try { await saveToGitHub(); }
+  catch (e) { setStatus("Offline – changes not saved yet"); }
+  finally {
+    saving = false;
+    if (pending) { pending = false; flushSave(); }
+  }
+}
+
+function changed(){
+  dirty = true;
+  render();
+  setStatus("Unsaved changes…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 1200);
+}
+
+window.addEventListener("beforeunload", e => { if (dirty) { e.preventDefault(); e.returnValue = ""; } });
+
+/* ---------- Login / logout ---------- */
+async function login(){
+  if (!CONFIG.owner || !CONFIG.repo) {
+    alert("Please fill in CONFIG.owner and CONFIG.repo at the top of the script first.");
+    return;
+  }
+  const t = prompt("Paste your GitHub fine-grained token.\nIt is stored only in this browser.");
+  if (!t) return;
+  token = t.trim();
+  try {
+    const r = await fetch(`https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}`, { headers: ghHeaders() });
+    if (!r.ok) throw new Error();
+    const j = await r.json();
+    if (j.permissions && j.permissions.push === false) throw new Error();
+    localStorage.setItem("bs_token", token);
+    await loadFromGitHub();
+    setEditMode(true);
+    setStatus("Editing");
+  } catch (e) {
+    token = "";
+    alert("Token not accepted. Check that it has Contents: Read and write access to " +
+          CONFIG.owner + "/" + CONFIG.repo + ".");
+  }
+}
+
+function logout(){
+  if (dirty && !confirm("You have unsaved changes. Log out anyway?")) return;
+  localStorage.removeItem("bs_token");
+  token = "";
+  setEditMode(false);
+  setStatus("");
+}
+
+function setEditMode(on){
+  editMode = on;
+  $("#authBtn").textContent = on ? "Log out" : "Owner login";
+  render();
+}
+
+/* ---------- Actions ---------- */
+function addNote(){
+  const text = $("#noteInput").value.trim();
+  if (!text) return;
+  const target = $("#noteTarget").value;
+  const now = Date.now();
+  state.notes.push({ id: uid(), text, folderId: target || null, created: now, updated: now });
+  $("#noteInput").value = "";
+  changed();
+}
+
+function moveNote(id, folderId){
+  const n = state.notes.find(x => x.id === id);
+  if (!n || (n.folderId || null) === (folderId || null)) return;
+  n.folderId = folderId || null;
+  changed();
+}
+
+function addFolder(){
+  const name = $("#folderInput").value.trim();
+  if (!name) return;
+  state.folders.push({ id: uid(), name, color: newFolderColor });
+  $("#folderInput").value = "";
+  changed();
+}
+
+function deleteFolder(f){
+  const n = state.notes.filter(x => x.folderId === f.id).length;
+  if (!confirm(`Delete folder "${f.name}"?` + (n ? `\nIts ${n} note(s) will move back to Loose notes.` : ""))) return;
+  state.notes.forEach(x => { if (x.folderId === f.id) x.folderId = null; });
+  state.folders = state.folders.filter(x => x.id !== f.id);
+  changed();
+}
+
+function renameFolder(f){
+  const name = prompt("Rename folder:", f.name);
+  if (name && name.trim()) { f.name = name.trim(); changed(); }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = el("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "brainstorm-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ---------- Drag & drop ---------- */
+function makeDropZone(zone, getFolderId){
+  zone.addEventListener("dragover", e => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("over");
+  });
+  zone.addEventListener("dragleave", e => {
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove("over");
+  });
+  zone.addEventListener("drop", e => {
+    if (!editMode) return;
+    e.preventDefault();
+    zone.classList.remove("over");
+    moveNote(e.dataTransfer.getData("text/plain"), getFolderId());
+  });
+}
+
+/* ---------- Rendering ---------- */
+function swatchRow(current, onPick){
+  const wrap = el("div", "swatches");
+  Object.entries(COLORS).forEach(([name, hex]) => {
+    const s = el("button", "swatch" + (name === current ? " sel" : ""));
+    s.style.background = hex;
+    s.title = name;
+    s.addEventListener("click", e => { e.stopPropagation(); onPick(name); });
+    wrap.appendChild(s);
+  });
+  return wrap;
+}
+
+function noteEl(n){
+  const card = el("div", "note");
+  const txt = el("div", "note-text", n.text);
+  card.append(txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
+  if (!editMode) return card;
+
+  card.draggable = true;
+  card.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", n.id);
+    e.dataTransfer.effectAllowed = "move";
+    card.classList.add("dragging");
+  });
+  card.addEventListener("dragend", () => card.classList.remove("dragging"));
+
+  const move = el("select");
+  move.title = "Move to folder";
+  move.append(new Option("Move to…", ""), new Option("Loose notes", "__loose"));
+  state.folders.forEach(f => move.append(new Option(f.name, f.id)));
+  move.addEventListener("change", () => {
+    if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
+  });
+
+  const tools = el("div", "note-tools");
+  tools.append(
+    move,
+    iconBtn("✎", "Edit note", () => editNote(card, n)),
+    iconBtn("✕", "Delete note", () => {
+      if (confirm("Delete this note?")) { state.notes = state.notes.filter(x => x.id !== n.id); changed(); }
+    })
+  );
+  card.appendChild(tools);
+  txt.addEventListener("dblclick", () => editNote(card, n));
+  return card;
+}
+
+function editNote(card, n){
+  card.draggable = false;
+  const ta = el("textarea", "note-edit");
+  ta.value = n.text;
+  card.querySelector(".note-text").replaceWith(ta);
+  ta.focus();
+  let done = false;
+  const finish = () => {
+    if (done) return;
+    done = true;
+    const v = ta.value.trim();
+    if (v && v !== n.text) { n.text = v; n.updated = Date.now(); changed(); }
+    else render();
+  };
+  ta.addEventListener("blur", finish);
+  ta.addEventListener("keydown", e => {
+    if (e.key === "Escape") { ta.value = n.text; finish(); }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) finish();
+  });
+}
+
+function folderEl(f){
+  const hex = COLORS[f.color] || COLORS.blue;
+  const box = el("div", "folder" + (collapsed[f.id] ? " collapsed" : ""));
+  box.style.setProperty("--c", hex);
+  box.style.setProperty("--tint", hex + "12");
+
+  const notes = state.notes.filter(n => n.folderId === f.id).sort((a, b) => b.created - a.created);
+
+  const head = el("div", "folder-head");
+  head.append(
+    el("span", "caret", collapsed[f.id] ? "▶" : "▼"),
+    el("span", "dot"),
+    el("span", "folder-name", f.name),
+    el("span", "count", "(" + notes.length + ")")
+  );
+  head.addEventListener("click", () => {
+    collapsed[f.id] = !collapsed[f.id];
+    localStorage.setItem("bs_collapsed", JSON.stringify(collapsed));
+    render();
+  });
+
+  if (editMode) {
+    const tools = el("div", "folder-tools");
+    const palette = swatchRow(f.color, c => { f.color = c; changed(); });
+    palette.classList.add("palette");
+    palette.addEventListener("click", e => e.stopPropagation());
+    tools.append(
+      palette,
+      iconBtn("🎨", "Change colour", () => palette.classList.toggle("open")),
+      iconBtn("✎", "Rename folder", () => renameFolder(f)),
+      iconBtn("✕", "Delete folder", () => deleteFolder(f))
+    );
+    head.appendChild(tools);
+  }
+
+  const body = el("div", "folder-body");
+  const grid = el("div", "grid");
+  notes.forEach(n => grid.appendChild(noteEl(n)));
+  body.appendChild(notes.length ? grid : el("div", "empty", editMode ? "Empty – drag notes here" : "Empty"));
+
+  box.append(head, body);
+  makeDropZone(box, () => f.id);
+  return box;
+}
+
+function render(){
+  document.body.classList.toggle("editing", editMode);
+
+  const folderIds = new Set(state.folders.map(f => f.id));
+  const loose = state.notes
+    .filter(n => !n.folderId || !folderIds.has(n.folderId))
+    .sort((a, b) => b.created - a.created);
+  const lg = $("#looseGrid");
+  lg.innerHTML = "";
+  loose.forEach(n => lg.appendChild(noteEl(n)));
+  if (!loose.length) lg.appendChild(el("div", "empty", editMode ? "No loose notes – drop a note here to unfile it" : "No loose notes"));
+
+  const fw = $("#folders");
+  fw.innerHTML = "";
+  state.folders.forEach(f => fw.appendChild(folderEl(f)));
+  if (!state.folders.length) fw.appendChild(el("div", "empty", "No folders yet"));
+
+  const sel = $("#noteTarget"), prev = sel.value;
+  sel.innerHTML = "";
+  sel.append(new Option("Save to: Loose notes", ""));
+  state.folders.forEach(f => sel.append(new Option("Save to: " + f.name, f.id)));
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+
+  const nf = $("#newFolderSwatches");
+  nf.replaceWith(Object.assign(swatchRow(newFolderColor, c => { newFolderColor = c; render(); }),
+                               { id: "newFolderSwatches" }));
+}
+
+/* ---------- Start up ---------- */
+$("#addNoteBtn").addEventListener("click", addNote);
+$("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
+$("#addFolderBtn").addEventListener("click", addFolder);
+$("#folderInput").addEventListener("keydown", e => { if (e.key === "Enter") addFolder(); });
+$("#authBtn").addEventListener("click", () => editMode ? logout() : login());
+$("#exportBtn").addEventListener("click", exportData);
+makeDropZone($("#looseZone"), () => null);
+
+(async function init(){
+  await loadPublic();
+  if (token && CONFIG.owner && CONFIG.repo) {
+    try { await loadFromGitHub(); editMode = true; setStatus("Editing"); }
+    catch (e) { setStatus("Viewing (login expired)"); }
+  }
+  setEditMode(editMode);
+})();
+</script>
+</body>
+</html>
