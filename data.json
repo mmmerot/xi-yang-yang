@@ -1,14 +1,14 @@
 {
   "folders": [
     {
-      "id": "munhgm88o89vl",
-      "name": "harvest moon",
-      "color": "green"
-    },
-    {
       "id": "muns3l61gg3ow",
       "name": "references",
       "color": "violet"
+    },
+    {
+      "id": "munhgm88o89vl",
+      "name": "harvest moon",
+      "color": "green"
     }
   ],
   "notes": [
