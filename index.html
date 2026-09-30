@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pixel dooba tiki mouse!!</title>
+<title>pixa dooba tiki mouse!!</title>
 <style>
-  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; }
+  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
@@ -21,6 +21,9 @@
   button:disabled{opacity:.5;cursor:wait}
   button.icon{border:none;background:none;padding:2px 6px;color:var(--muted)}
   button.icon:hover{color:var(--text);background:none}
+  /* CHANGED: green "Add note" button */
+  #addNoteBtn{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
+  #addNoteBtn:hover{background:#2b9a65;border-color:#2b9a65}
   main{max-width:1100px;margin:0 auto;padding:24px}
   section{margin-bottom:32px}
   .edit-only{display:none !important}
@@ -35,44 +38,46 @@
   .zone{min-height:70px;border:1px dashed transparent;border-radius:10px;padding:4px;transition:.15s}
   .zone.over{border-color:#aaa;background:#f0f0f0}
 
-  /* Notes + sizes */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;gap:12px}
-  .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
+  /* Notes – CHANGED: size is set by dragging the note's corner (width snaps to columns, height is free) */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;
+        gap:12px;align-items:start}
+  .note{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
         display:flex;flex-direction:column;gap:8px;min-width:0}
-  .note.size-m{grid-column:span 2}
-  .note.size-l{grid-column:span 3}
-  .note.size-m .note-text{font-size:15px}
-  .note.size-l .note-text{font-size:16px}
-  @media (max-width:760px){ .note.size-m,.note.size-l{grid-column:auto} }
+  .note.wide .note-text{font-size:15px}
   body.editing .note{cursor:grab}
   .note.dragging{opacity:.4}
+  .note.resizing{outline:2px solid #0090ff;cursor:nwse-resize}
   .note-text{white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
   .note-text:empty{display:none}
   .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
-  .note-meta{font-size:11px;color:var(--muted)}
-  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+  .note-meta{font-size:11px;color:var(--muted);margin-top:auto}
+  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
-  .sizes{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
-  .sizes button{border:none;border-radius:0;padding:1px 6px;font-size:11px;color:var(--muted);background:#fff}
-  .sizes button.on{background:#222;color:#fff}
   .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
+  /* Note resize handle (bottom-right corner of the note) */
+  .note-grip{position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;touch-action:none;
+             background:linear-gradient(135deg,transparent 50%,#bbb 50%,#bbb 58%,transparent 58%,
+             transparent 72%,#bbb 72%,#bbb 80%,transparent 80%);border-bottom-right-radius:7px}
+  .note:hover .note-grip,.note.resizing .note-grip{background:linear-gradient(135deg,transparent 50%,#555 50%,#555 58%,
+             transparent 58%,transparent 72%,#555 72%,#555 80%,transparent 80%)}
+  .note-tag{position:absolute;right:20px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;
+            padding:1px 7px;border-radius:10px;display:none;pointer-events:none}
+  .note.resizing .note-tag{display:block}
 
-  /* Images – they grow and shrink with the note size */
+  /* Images – they grow and shrink with the note */
   .thumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
   .thumbs:empty{display:none}
   .thumb{position:relative;min-width:0;flex:0 0 auto;width:calc(50% - 3px);max-width:100%}
-  .thumbs.one .thumb{width:100%}
-  .size-m .thumb{width:calc(33.333% - 4px)}
-  .size-l .thumb{width:calc(33.333% - 4px)}
-  .size-m .thumbs.one .thumb,.size-l .thumbs.one .thumb{width:100%}
+  .note.wide .thumb{width:calc(33.333% - 4px)}
+  .thumbs.one .thumb,.note.wide .thumbs.one .thumb{width:100%}
   .thumb.custom{width:var(--w) !important}
   .thumb img{display:block;width:100%;height:auto;border-radius:6px;
              border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  /* CHANGED: resize handle – always visible (faint) when logged in, bigger, shows a % label while dragging */
+  /* Image resize handle */
   .grip{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:5px;cursor:nwse-resize;
         background:rgba(0,0,0,.55) linear-gradient(135deg,transparent 45%,#fff 45%,#fff 55%,transparent 55%,
         transparent 70%,#fff 70%,#fff 80%,transparent 80%);opacity:.35;transition:opacity .15s;
@@ -106,7 +111,13 @@
   .folder{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:10px;
           background:linear-gradient(0deg,var(--tint),var(--tint)),#fff}
   .folder.over{outline:2px dashed var(--c);outline-offset:2px}
+  .folder.folder-dragging{opacity:.4}
+  /* CHANGED: blue line shows where a dragged folder will land */
+  .folder.drop-before{box-shadow:0 -4px 0 0 #0090ff}
+  .folder.drop-after{box-shadow:0 4px 0 0 #0090ff}
   .folder-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none}
+  .handle{color:#bbb;cursor:grab;font-size:14px;letter-spacing:-2px;padding:0 2px}
+  .handle:hover{color:#555}
   .dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex-shrink:0}
   .folder-name{font-weight:600}
   .count{color:var(--muted);font-size:12px}
@@ -134,7 +145,7 @@
 <body>
 
 <header>
-  <h1>pixel dooba tiki mouse!!</h1>
+  <h1>pixa dooba tiki mouse!!</h1>
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
@@ -148,14 +159,9 @@
     <div class="thumbs pending" id="pendingPreview"></div>
     <div class="row">
       <select id="noteTarget"></select>
-      <select id="noteSize" title="Note size">
-        <option value="s">Size: Small</option>
-        <option value="m">Size: Medium</option>
-        <option value="l">Size: Large</option>
-      </select>
       <button id="pickImagesBtn" title="Choose one or more images from your computer">Add images</button>
       <button id="addNoteBtn">Add note</button>
-      <span class="hint">Tip: paste as many images as you like before adding the note</span>
+      <span class="hint">Tip: drag the bottom-right corner of a note to resize it</span>
     </div>
   </div>
 
@@ -228,7 +234,8 @@ const COLORS = {
   red:"#e5484d", orange:"#f76b15", yellow:"#f5c518", green:"#30a46c",
   blue:"#0090ff", indigo:"#3e63dd", violet:"#8e4ec6"
 };
-const SIZES = { s: "Small", m: "Medium", l: "Large" };
+const OLD_SIZES = { s: 1, m: 2, l: 3 };      // notes saved with the old S/M/L buttons keep their width
+const FOLDER_MIME = "application/x-bs-folder";
 
 let state = { folders: [], notes: [] };
 let sha = null;
@@ -485,7 +492,7 @@ function stepLightbox(d){
 const closeLightbox = () => $("#lightbox").classList.remove("open");
 
 /* thumbs container for a list of image sources.
-   opts.widths  = saved custom widths (percent) per image
+   opts.widths  = saved custom widths (percent of the note) per image
    opts.onResize(i, pct) = called when you finish dragging an image corner (pct null = reset) */
 function fillThumbs(box, sources, onRemove, fallbacks, opts){
   opts = opts || {};
@@ -523,11 +530,9 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
   });
 }
 
-/* CHANGED: corner handle
-   - drag right/down (diagonally) to enlarge, left/up to shrink; the image keeps its shape
-   - shows the size in % while dragging, snaps to 100% near full width
-   - double-click / double-tap to reset to the automatic size
-   - keyboard: Tab to the handle, arrow keys = ±5%, Delete/Backspace = reset */
+/* Image corner handle
+   - drag right/down to enlarge, left/up to shrink; the image keeps its shape
+   - double-click / double-tap to reset; keyboard: arrow keys ±5%, Delete = reset */
 function makeGrip(wrap, box, img, done){
   const g = el("div", "grip");
   g.title = "Drag to resize image · double-click to reset";
@@ -567,16 +572,19 @@ function makeGrip(wrap, box, img, done){
     const ratio = (img.naturalWidth && img.naturalHeight)
       ? img.naturalHeight / img.naturalWidth
       : (rect.height / (rect.width || 1)) || 1;
+    const hadCustom = wrap.classList.contains("custom");
+    const oldW = wrap.style.getPropertyValue("--w");
     wrap.classList.add("resizing");
-    apply(clamp(startW / boxW * 100));
-    let pct = null, lastTap = g._lastTap || 0;
+    let pct = null;
+    const lastTap = g._lastTap || 0;
 
     const move = ev => {
       const dx = ev.clientX - startX;
-      const dyAsW = (ev.clientY - startY) / ratio;         // vertical movement converted to width
+      const dyAsW = (ev.clientY - startY) / ratio;
       const delta = Math.abs(dx) >= Math.abs(dyAsW) ? dx : dyAsW;
+      if (Math.abs(delta) < 2 && pct == null) return;
       let p = clamp((startW + delta) / boxW * 100);
-      if (p >= 97) p = 100;                                 // snap to full width
+      if (p >= 97) p = 100;
       pct = p;
       apply(p);
     };
@@ -587,11 +595,11 @@ function makeGrip(wrap, box, img, done){
       wrap.classList.remove("resizing");
       if (card) card.draggable = wasDraggable;
       if (pct == null) {
-        // no movement: treat two quick taps as a reset (works on touch screens too)
+        if (!hadCustom) { wrap.classList.remove("custom"); wrap.style.removeProperty("--w"); }
+        else wrap.style.setProperty("--w", oldW);
         const now = Date.now();
         g._lastTap = now;
-        if (now - lastTap < 350) { g._lastTap = 0; reset(); return; }
-        if (!done._saved && !wrap.dataset.hadCustom) { /* keep current look */ }
+        if (now - lastTap < 350) { g._lastTap = 0; reset(); }
         return;
       }
       wrap.dataset.justResized = 1;
@@ -617,6 +625,92 @@ function makeGrip(wrap, box, img, done){
     }
   });
   return g;
+}
+
+/* ---------- NEW: note sizing (drag the note's bottom-right corner) ---------- */
+// How many grid columns a note spans (old S/M/L notes are converted automatically)
+const noteSpan = n => Math.max(1, n.span || OLD_SIZES[n.size] || 1);
+
+function gridInfo(grid){
+  const cs = getComputedStyle(grid);
+  const cols = Math.max(1, cs.gridTemplateColumns.split(" ").filter(Boolean).length);
+  const gap = parseFloat(cs.columnGap) || 12;
+  const colW = (grid.clientWidth - gap * (cols - 1)) / cols;
+  return { cols, gap, colW };
+}
+
+// Applies a width (in columns) to a note, never wider than the screen allows
+function applySpan(card, span){
+  const grid = card.parentElement;
+  const cols = grid && grid.classList.contains("grid") ? gridInfo(grid).cols : span;
+  const s = Math.min(span, cols);
+  card.style.gridColumn = "span " + s;
+  card.classList.toggle("wide", s >= 2);
+}
+
+// Re-checks every note's width (after drawing the page and when the window is resized)
+function fitNotes(){
+  document.querySelectorAll(".grid > .note").forEach(card => applySpan(card, +card.dataset.span || 1));
+}
+let fitTimer;
+window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitNotes, 100); });
+
+function makeNoteGrip(card, n){
+  const g = el("div", "note-grip");
+  g.title = "Drag to resize note · double-click to reset";
+  const tag = el("div", "note-tag");
+  g.addEventListener("dragstart", e => e.preventDefault());
+  g.addEventListener("mousedown", e => e.stopPropagation());
+  g.addEventListener("click", e => e.stopPropagation());
+  g.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const grid = card.parentElement;
+    if (!grid) return;
+    card.draggable = false;
+    g.setPointerCapture(e.pointerId);
+    const { cols, gap, colW } = gridInfo(grid);
+    const rect = card.getBoundingClientRect();
+    const startX = e.clientX, startY = e.clientY;
+    let span = Math.min(noteSpan(n), cols), h = null, moved = false;
+    card.classList.add("resizing");
+
+    const move = ev => {
+      const dx = ev.clientX - startX, dy = ev.clientY - startY;
+      if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+      moved = true;
+      span = Math.min(cols, Math.max(1, Math.round((rect.width + dx + gap) / (colW + gap))));
+      card.style.gridColumn = "span " + span;
+      card.classList.toggle("wide", span >= 2);
+      if (Math.abs(dy) >= 3) {
+        h = Math.max(100, Math.round(rect.height + dy));
+        card.style.minHeight = h + "px";
+      }
+      tag.textContent = span + (span > 1 ? " columns" : " column") + (h ? " · " + h + "px tall" : "");
+    };
+    const up = () => {
+      g.removeEventListener("pointermove", move);
+      g.removeEventListener("pointerup", up);
+      g.removeEventListener("pointercancel", up);
+      card.classList.remove("resizing");
+      card.draggable = true;
+      if (!moved) return;
+      n.span = span;
+      delete n.size;
+      if (h) n.h = h;
+      card.dataset.span = span;
+      scheduleSave();
+    };
+    g.addEventListener("pointermove", move);
+    g.addEventListener("pointerup", up);
+    g.addEventListener("pointercancel", up);
+  });
+  g.addEventListener("dblclick", e => {
+    e.stopPropagation();
+    delete n.span; delete n.h; delete n.size;
+    changed();
+  });
+  return [g, tag];
 }
 
 function renderPending(){
@@ -707,7 +801,7 @@ async function addNote(){
   try {
     const images = await uploadAll(pendingImages);
     const now = Date.now();
-    state.notes.push({ id: uid(), text, images, size: $("#noteSize").value || "s",
+    state.notes.push({ id: uid(), text, images,
                        folderId: $("#noteTarget").value || null, created: now, updated: now });
     $("#noteInput").value = "";
     pendingImages = [];
@@ -724,13 +818,6 @@ function moveNote(id, folderId){
   const n = state.notes.find(x => x.id === id);
   if (!n || (n.folderId || null) === (folderId || null)) return;
   n.folderId = folderId || null;
-  changed();
-}
-
-function setNoteSize(n, size){
-  if ((n.size || "s") === size) return;
-  n.size = size;
-  delete n.imgSizes;   // images go back to the automatic size for the new note size
   changed();
 }
 
@@ -789,6 +876,27 @@ function renameFolder(f){
   if (name && name.trim()) { f.name = name.trim(); changed(); }
 }
 
+/* NEW: folder ordering */
+// Moves a folder one place up (-1) or down (+1)
+function shiftFolder(f, d){
+  const i = state.folders.indexOf(f), j = i + d;
+  if (i < 0 || j < 0 || j >= state.folders.length) return;
+  [state.folders[i], state.folders[j]] = [state.folders[j], state.folders[i]];
+  changed();
+}
+// Drops a dragged folder before or after another folder
+function reorderFolder(dragId, targetId, after){
+  if (!dragId || dragId === targetId) return;
+  const moving = state.folders.find(x => x.id === dragId);
+  if (!moving) return;
+  const rest = state.folders.filter(x => x.id !== dragId);
+  const t = rest.findIndex(x => x.id === targetId);
+  if (t < 0) return;
+  rest.splice(t + (after ? 1 : 0), 0, moving);
+  state.folders = rest;
+  changed();
+}
+
 function exportData(){
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
   const a = el("a");
@@ -808,21 +916,40 @@ function pickImages(onFiles){
   inp.click();
 }
 
-/* ---------- Drag & drop ---------- */
+/* ---------- Drag & drop (notes into folders, and folders to reorder) ---------- */
+const isFolderDrag = e => [...(e.dataTransfer.types || [])].includes(FOLDER_MIME);
+
 function makeDropZone(zone, getFolderId){
+  const clearMarks = () => zone.classList.remove("over", "drop-before", "drop-after");
   zone.addEventListener("dragover", e => {
     if (!editMode) return;
+    if (isFolderDrag(e)) {
+      const fid = getFolderId();
+      if (!fid) return;                         // folders can only be dropped on other folders
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      const r = zone.getBoundingClientRect();
+      const after = e.clientY > r.top + r.height / 2;
+      zone.classList.toggle("drop-after", after);
+      zone.classList.toggle("drop-before", !after);
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     zone.classList.add("over");
   });
   zone.addEventListener("dragleave", e => {
-    if (!zone.contains(e.relatedTarget)) zone.classList.remove("over");
+    if (!zone.contains(e.relatedTarget)) clearMarks();
   });
   zone.addEventListener("drop", e => {
     if (!editMode) return;
     e.preventDefault();
-    zone.classList.remove("over");
+    const after = zone.classList.contains("drop-after");
+    clearMarks();
+    if (isFolderDrag(e)) {
+      reorderFolder(e.dataTransfer.getData(FOLDER_MIME), getFolderId(), after);
+      return;
+    }
     const id = e.dataTransfer.getData("text/plain");
     if (id) moveNote(id, getFolderId());
   });
@@ -882,8 +1009,11 @@ function setImageSize(n, path, pct){
 }
 
 function noteEl(n){
-  const size = SIZES[n.size] ? n.size : "s";
-  const card = el("div", "note size-" + size);
+  const span = noteSpan(n);
+  const card = el("div", "note" + (span >= 2 ? " wide" : ""));
+  card.dataset.span = span;
+  card.style.gridColumn = "span " + span;
+  if (n.h) card.style.minHeight = n.h + "px";
   const txt = el("div", "note-text");
   if (n.text) txt.append(linkify(n.text));
   const imgs = el("div", "thumbs");
@@ -907,24 +1037,15 @@ function noteEl(n){
     if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
   });
 
-  // Size switch: S / M / L
-  const sizes = el("div", "sizes");
-  Object.entries(SIZES).forEach(([key, label]) => {
-    const b = el("button", key === size ? "on" : "", key.toUpperCase());
-    b.title = "Note size: " + label;
-    b.addEventListener("click", e => { e.stopPropagation(); setNoteSize(n, key); });
-    sizes.appendChild(b);
-  });
-
   const tools = el("div", "note-tools");
   tools.append(
     move,
-    sizes,
     iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
     iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n)),
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
   card.appendChild(tools);
+  card.append(...makeNoteGrip(card, n));
   txt.addEventListener("dblclick", () => editNote(card, n));
   return card;
 }
@@ -966,7 +1087,7 @@ function editNote(card, n){
   });
 }
 
-function folderEl(f){
+function folderEl(f, idx){
   const hex = COLORS[f.color] || COLORS.blue;
   const box = el("div", "folder" + (collapsed[f.id] ? " collapsed" : ""));
   box.style.setProperty("--c", hex);
@@ -975,6 +1096,20 @@ function folderEl(f){
   const notes = state.notes.filter(n => n.folderId === f.id).sort((a, b) => b.created - a.created);
 
   const head = el("div", "folder-head");
+  if (editMode) {
+    const handle = el("span", "handle", "⋮⋮");
+    handle.title = "Drag to move folder";
+    head.appendChild(handle);
+    head.draggable = true;
+    head.addEventListener("dragstart", e => {
+      e.stopPropagation();
+      e.dataTransfer.setData(FOLDER_MIME, f.id);
+      e.dataTransfer.effectAllowed = "move";
+      try { e.dataTransfer.setDragImage(box, 20, 20); } catch (err) {}
+      box.classList.add("folder-dragging");
+    });
+    head.addEventListener("dragend", () => box.classList.remove("folder-dragging"));
+  }
   head.append(
     el("span", "caret", collapsed[f.id] ? "▶" : "▼"),
     el("span", "dot"),
@@ -992,8 +1127,13 @@ function folderEl(f){
     const palette = swatchRow(f.color, c => { f.color = c; changed(); });
     palette.classList.add("palette");
     palette.addEventListener("click", e => e.stopPropagation());
+    const up = iconBtn("↑", "Move folder up", () => shiftFolder(f, -1));
+    const down = iconBtn("↓", "Move folder down", () => shiftFolder(f, 1));
+    if (idx === 0) up.disabled = true;
+    if (idx === state.folders.length - 1) down.disabled = true;
     tools.append(
       palette,
+      up, down,
       iconBtn("🎨", "Change colour", () => palette.classList.toggle("open")),
       iconBtn("✎", "Rename folder", () => renameFolder(f)),
       iconBtn("✕", "Delete folder", () => deleteFolder(f))
@@ -1025,7 +1165,7 @@ function render(){
 
   const fw = $("#folders");
   fw.innerHTML = "";
-  state.folders.forEach(f => fw.appendChild(folderEl(f)));
+  state.folders.forEach((f, i) => fw.appendChild(folderEl(f, i)));
   if (!state.folders.length) fw.appendChild(el("div", "empty", "No folders yet"));
 
   const sel = $("#noteTarget"), prev = sel.value;
@@ -1037,6 +1177,7 @@ function render(){
   const nf = $("#newFolderSwatches");
   nf.replaceWith(Object.assign(swatchRow(newFolderColor, c => { newFolderColor = c; render(); }),
                                { id: "newFolderSwatches" }));
+  fitNotes();
 }
 
 /* ---------- Start up ---------- */
