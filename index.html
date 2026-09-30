@@ -108,12 +108,25 @@
   .folder.collapsed .folder-body{display:none}
   .palette{display:none;margin-right:6px}
   .palette.open{display:flex}
+
+  /* Login panel (on the page itself, so the browser can't block it) */
+  .login-panel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+               background:rgba(0,0,0,.35)}
+  .login-panel[hidden]{display:none}
+  .login-box{background:#fff;border-radius:10px;padding:20px;width:min(360px,92vw);
+             display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+  .login-box h3{margin:0 0 4px;font-size:15px}
+  .login-box label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  .login-box input{border:1px solid var(--line);border-radius:6px;padding:7px 10px;outline:none}
+  .login-box input:focus{border-color:#bbb}
+  .lp-msg{font-size:12px;color:#e5484d;min-height:16px}
+  .login-box .row{justify-content:flex-end}
 </style>
 </head>
 <body>
 
 <header>
-  <h1>pixa dooba tiki mouse!!</h1>
+  <h1>Brainstorm</h1>
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
@@ -154,6 +167,20 @@
   </section>
 </main>
 
+<div class="login-panel" id="loginPanel" hidden>
+  <div class="login-box">
+    <h3>Owner login</h3>
+    <label>GitHub username <input id="lpOwner" autocomplete="off" placeholder="e.g. vanessatan"></label>
+    <label>Repository name <input id="lpRepo" autocomplete="off" placeholder="e.g. brainstorm"></label>
+    <label>Token <input id="lpToken" type="password" autocomplete="off" placeholder="github_pat_…"></label>
+    <div class="lp-msg" id="lpMsg"></div>
+    <div class="row">
+      <button id="lpCancel">Cancel</button>
+      <button id="lpGo">Log in</button>
+    </div>
+  </div>
+</div>
+
 <div class="lightbox" id="lightbox">
   <button class="lb-nav" id="lbPrev" title="Previous image">‹</button>
   <img id="lightboxImg" alt="">
@@ -163,18 +190,22 @@
 
 <script>
 /* =====================================================================
-   SETTINGS: edit these 2 lines (your GitHub username + repository name)
+   SETTINGS (optional): you can type your username + repo in the login box instead
    ===================================================================== */
 const CONFIG = {
-  owner:  "",            // e.g. "mmmerot"
-  repo:   "",            // e.g. "xi-yany-yang"
+  owner:  "",            // e.g. "vanessatan"
+  repo:   "",            // e.g. "brainstorm"
   branch: "main",
   path:   "data.json",   // file where your notes are stored (created automatically)
   imageFolder: "images", // folder where pasted images are stored (created automatically)
   maxImageSide: 1600     // large images are shrunk to this many pixels to keep saving fast
 };
 
-/* Auto-detect owner/repo when hosted on GitHub Pages (used only if left blank above) */
+/* Use the username/repo you typed in the login box last time (if left blank above) */
+if (!CONFIG.owner) CONFIG.owner = localStorage.getItem("bs_owner") || "";
+if (!CONFIG.repo)  CONFIG.repo  = localStorage.getItem("bs_repo")  || "";
+
+/* Auto-detect owner/repo when hosted on GitHub Pages (used only if still blank) */
 (function autodetect(){
   const host = location.hostname;
   if (!host.endsWith(".github.io")) return;
@@ -197,4 +228,804 @@ let token = localStorage.getItem("bs_token") || "";
 let editMode = false;
 let saveTimer = null, saving = false, pending = false, dirty = false, busy = 0;
 let newFolderColor = "blue";
-let pendingImages = [];     
+let pendingImages = [];        // images waiting in the new-note box
+const localImg = {};           // images uploaded this session (shown instantly)
+const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
+let lb = { list: [], i: 0 };   // lightbox gallery
+
+const $ = s => document.querySelector(s);
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const setStatus = t => $("#status").textContent = t;
+const fmtDate = ts => new Date(ts).toLocaleString("en-SG",
+  { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
+
+// Show any unexpected error at the top of the page instead of failing silently
+window.addEventListener("error", e => setStatus("Error: " + e.message));
+
+function el(tag, cls, text){
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text != null) e.textContent = text;
+  return e;
+}
+function iconBtn(label, title, fn){
+  const b = el("button", "icon", label);
+  b.title = title;
+  b.addEventListener("click", e => { e.stopPropagation(); fn(); });
+  return b;
+}
+function normalise(d){
+  return { folders: Array.isArray(d && d.folders) ? d.folders : [],
+           notes:   Array.isArray(d && d.notes)   ? d.notes   : [] };
+}
+function b64encode(str){
+  const bytes = new TextEncoder().encode(str);
+  let bin = ""; bytes.forEach(b => bin += String.fromCharCode(b));
+  return btoa(bin);
+}
+function b64decode(b64){
+  const bin = atob(b64.replace(/\n/g, ""));
+  return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+/* ---------- GitHub storage ---------- */
+const apiUrl = p =>
+  `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${p || CONFIG.path}`;
+const rawUrl = p =>
+  `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${p}`;
+const ghHeaders = () =>
+  ({ "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" });
+
+// All GitHub writes go one at a time, so they never clash with each other
+let ghChain = Promise.resolve();
+function ghQueue(fn){
+  const p = ghChain.then(fn, fn);
+  ghChain = p.catch(() => {});
+  return p;
+}
+
+async function loadPublic(){
+  try {
+    const r = await fetch(CONFIG.path + "?t=" + Date.now(), { cache: "no-store" });
+    if (r.ok) state = normalise(await r.json());
+  } catch (e) { /* no data yet */ }
+}
+
+async function loadFromGitHub(){
+  const r = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+  if (r.status === 404) { sha = null; return; }
+  if (!r.ok) throw new Error("Load failed (" + r.status + ")");
+  const j = await r.json();
+  sha = j.sha;
+  state = normalise(JSON.parse(b64decode(j.content)));
+}
+
+async function saveToGitHub(retry = true){
+  setStatus("Saving…");
+  const body = {
+    message: "Update notes " + new Date().toISOString(),
+    content: b64encode(JSON.stringify(state, null, 2)),
+    branch: CONFIG.branch
+  };
+  if (sha) body.sha = sha;
+  const r = await fetch(apiUrl(), {
+    method: "PUT",
+    headers: { ...ghHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  if (r.ok) {
+    sha = (await r.json()).content.sha;
+    dirty = false;
+    setStatus("Saved ✓");
+    return;
+  }
+  if ((r.status === 409 || r.status === 422) && retry) {
+    const g = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+    sha = g.ok ? (await g.json()).sha : null;
+    return saveToGitHub(false);
+  }
+  setStatus("Save failed (" + r.status + ") – keep this tab open and try again");
+}
+
+async function flushSave(){
+  if (saving) { pending = true; return; }
+  saving = true;
+  try { await ghQueue(() => saveToGitHub()); }
+  catch (e) { setStatus("Offline – changes not saved yet"); }
+  finally {
+    saving = false;
+    if (pending) { pending = false; flushSave(); }
+  }
+}
+
+// Schedules a save without redrawing the page (used while you are still editing a note)
+function scheduleSave(){
+  dirty = true;
+  setStatus("Unsaved changes…");
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(flushSave, 1200);
+}
+function changed(){
+  render();
+  scheduleSave();
+}
+
+window.addEventListener("beforeunload", e => {
+  if (dirty || busy) { e.preventDefault(); e.returnValue = ""; }
+});
+
+/* ---------- Images ---------- */
+function readAsDataURL(blob){
+  return new Promise((res, rej) => {
+    const fr = new FileReader();
+    fr.onload = () => res(fr.result);
+    fr.onerror = rej;
+    fr.readAsDataURL(blob);
+  });
+}
+function loadImage(src){
+  return new Promise((res, rej) => {
+    const i = new Image();
+    i.onload = () => res(i);
+    i.onerror = rej;
+    i.src = src;
+  });
+}
+
+// Turns an image into {dataUrl, ext}; big images are shrunk to save space
+async function prepareImage(file){
+  const dataUrl = await readAsDataURL(file);
+  const img = await loadImage(dataUrl);
+  const max = CONFIG.maxImageSide;
+  if (file.size > 1000000 || img.width > max || img.height > max) {
+    const scale = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement("canvas");
+    c.width = Math.round(img.width * scale);
+    c.height = Math.round(img.height * scale);
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, c.width, c.height);
+    ctx.drawImage(img, 0, 0, c.width, c.height);
+    return { dataUrl: c.toDataURL("image/jpeg", 0.85), ext: "jpg" };
+  }
+  const ext = (file.type.split("/")[1] || "png").replace("jpeg", "jpg").replace("svg+xml", "svg");
+  return { dataUrl, ext };
+}
+
+// Gets every image from a paste (several images at once are supported)
+function imagesFromClipboard(e){
+  const cd = e.clipboardData;
+  if (!cd) return [];
+  let files = [...(cd.files || [])].filter(f => f.type.startsWith("image/"));
+  if (!files.length) {
+    files = [...(cd.items || [])]
+      .filter(i => i.kind === "file" && i.type.startsWith("image/"))
+      .map(i => i.getAsFile()).filter(Boolean);
+  }
+  return files;
+}
+
+async function uploadImage(prepared){
+  const path = `${CONFIG.imageFolder}/${uid()}.${prepared.ext}`;
+  const r = await ghQueue(() => fetch(apiUrl(path), {
+    method: "PUT",
+    headers: { ...ghHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message: "Add image " + path,
+      content: prepared.dataUrl.split(",")[1],
+      branch: CONFIG.branch
+    })
+  }));
+  if (!r.ok) throw new Error("Image upload failed (" + r.status + ")");
+  localImg[path] = prepared.dataUrl;
+  return path;
+}
+
+function deleteImage(path){
+  return ghQueue(async () => {
+    try {
+      const g = await fetch(apiUrl(path) + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+      if (!g.ok) return;
+      await fetch(apiUrl(path), {
+        method: "DELETE",
+        headers: { ...ghHeaders(), "Content-Type": "application/json" },
+        body: JSON.stringify({ message: "Remove image " + path, sha: (await g.json()).sha, branch: CONFIG.branch })
+      });
+    } catch (e) { /* leaving an unused image behind is harmless */ }
+  });
+}
+
+// Uploads images one by one and returns their saved paths
+async function uploadAll(prepared){
+  busy++;
+  const paths = [];
+  try {
+    for (let i = 0; i < prepared.length; i++) {
+      setStatus(`Uploading image ${i + 1} of ${prepared.length}…`);
+      paths.push(await uploadImage(prepared[i]));
+    }
+  } finally { busy--; }
+  return paths;
+}
+
+async function prepareAll(files){
+  const out = [];
+  for (const f of files) {
+    try { out.push(await prepareImage(f)); }
+    catch (e) { setStatus("One image could not be read and was skipped."); }
+  }
+  return out;
+}
+
+/* ---------- Lightbox (click an image; use ‹ › or arrow keys for other images in the same note) ---------- */
+function openLightbox(list, i){
+  lb = { list, i };
+  showLightbox();
+  $("#lightbox").classList.add("open");
+}
+function showLightbox(){
+  $("#lightboxImg").src = lb.list[lb.i];
+  const many = lb.list.length > 1;
+  $("#lbPrev").style.display = $("#lbNext").style.display = many ? "" : "none";
+  $("#lbCount").textContent = many ? `${lb.i + 1} / ${lb.list.length}` : "";
+}
+function stepLightbox(d){
+  if (lb.list.length < 2) return;
+  lb.i = (lb.i + d + lb.list.length) % lb.list.length;
+  showLightbox();
+}
+const closeLightbox = () => $("#lightbox").classList.remove("open");
+
+/* thumbs container for a list of image sources.
+   opts.widths  = saved custom widths (percent) per image
+   opts.onResize(i, pct) = called when you finish dragging an image corner (pct null = reset) */
+function fillThumbs(box, sources, onRemove, fallbacks, opts){
+  opts = opts || {};
+  box.innerHTML = "";
+  box.classList.toggle("one", sources.length === 1);
+  sources.forEach((src, i) => {
+    const wrap = el("div", "thumb");
+    const w = opts.widths && opts.widths[i];
+    if (w) { wrap.classList.add("custom"); wrap.style.setProperty("--w", w + "%"); }
+    const img = el("img");
+    img.src = src;
+    img.alt = "";
+    img.loading = "lazy";
+    img.draggable = false;
+    const fb = fallbacks && fallbacks[i];
+    if (fb) img.onerror = () => { if (!img.dataset.f) { img.dataset.f = 1; img.src = fb; } };
+    img.addEventListener("click", e => {
+      e.stopPropagation();
+      if (wrap.dataset.justResized) return;
+      const list = [...box.querySelectorAll("img")].map(x => x.src);
+      openLightbox(list, i);
+    });
+    wrap.appendChild(img);
+    if (onRemove) {
+      const x = el("button", "x", "✕");
+      x.title = "Remove image";
+      x.addEventListener("click", e => { e.stopPropagation(); onRemove(i); });
+      wrap.appendChild(x);
+    }
+    if (opts.onResize) wrap.appendChild(makeGrip(wrap, box, pct => opts.onResize(i, pct)));
+    box.appendChild(wrap);
+  });
+}
+
+// Corner handle: drag to resize an image, double-click to reset it to the automatic size
+function makeGrip(wrap, box, done){
+  const g = el("div", "grip");
+  g.title = "Drag to resize image · double-click to reset";
+  const card = box.closest(".note");
+  g.addEventListener("dragstart", e => e.preventDefault());
+  g.addEventListener("mousedown", e => e.stopPropagation());
+  g.addEventListener("pointerdown", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const c = card || box.closest(".note");
+    const wasDraggable = c && c.draggable;
+    if (c) c.draggable = false;
+    g.setPointerCapture(e.pointerId);
+    wrap.classList.add("resizing", "custom");
+    const left = wrap.getBoundingClientRect().left;
+    const boxW = box.getBoundingClientRect().width;
+    let pct = null;
+    const move = ev => {
+      pct = Math.round(Math.min(100, Math.max(15, (ev.clientX - left) / boxW * 100)));
+      wrap.style.setProperty("--w", pct + "%");
+    };
+    const up = () => {
+      g.removeEventListener("pointermove", move);
+      g.removeEventListener("pointerup", up);
+      g.removeEventListener("pointercancel", up);
+      wrap.classList.remove("resizing");
+      if (c) c.draggable = wasDraggable;
+      if (pct == null) { if (!wrap.style.getPropertyValue("--w")) wrap.classList.remove("custom"); return; }
+      wrap.dataset.justResized = 1;
+      setTimeout(() => delete wrap.dataset.justResized, 300);
+      done(pct);
+    };
+    g.addEventListener("pointermove", move);
+    g.addEventListener("pointerup", up);
+    g.addEventListener("pointercancel", up);
+  });
+  g.addEventListener("click", e => e.stopPropagation());
+  g.addEventListener("dblclick", e => {
+    e.stopPropagation();
+    wrap.classList.remove("custom");
+    wrap.style.removeProperty("--w");
+    done(null);
+  });
+  return g;
+}
+
+function renderPending(){
+  fillThumbs($("#pendingPreview"), pendingImages.map(p => p.dataUrl),
+             i => { pendingImages.splice(i, 1); renderPending(); });
+}
+
+async function addToComposer(files){
+  pendingImages.push(...await prepareAll(files));
+  renderPending();
+  setStatus(pendingImages.length + " image(s) ready – click Add note");
+}
+
+/* ---------- Login / logout ---------- */
+// Opens the login box on the page (no pop-ups, so the browser can't block it)
+function login(){
+  $("#lpOwner").value = CONFIG.owner || "";
+  $("#lpRepo").value  = CONFIG.repo  || "";
+  $("#lpToken").value = "";
+  $("#lpMsg").textContent = "";
+  $("#loginPanel").hidden = false;
+  (CONFIG.owner && CONFIG.repo ? $("#lpToken") : $("#lpOwner")).focus();
+}
+function closeLogin(){ $("#loginPanel").hidden = true; }
+
+async function doLogin(){
+  const owner = $("#lpOwner").value.trim();
+  const repo  = $("#lpRepo").value.trim();
+  const t     = $("#lpToken").value.trim();
+  const msg   = $("#lpMsg");
+  if (!owner || !repo || !t) { msg.style.color = ""; msg.textContent = "Please fill in all three boxes."; return; }
+  msg.style.color = "var(--muted)";
+  msg.textContent = "Checking…";
+  $("#lpGo").disabled = true;
+  CONFIG.owner = owner; CONFIG.repo = repo; token = t;
+  try {
+    let r;
+    try {
+      r = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders() });
+    } catch (e) {
+      throw new Error("Can't reach GitHub. Your network (e.g. a work network) may be blocking api.github.com – try another network or device.");
+    }
+    if (r.status === 401) throw new Error("Token not accepted – it may be wrong, expired, or copied with missing characters.");
+    if (r.status === 403) throw new Error("GitHub refused access (403). Check the token's permissions, or try again later.");
+    if (r.status === 404) throw new Error(`Repository "${owner}/${repo}" not found, or the token wasn't given access to it.`);
+    if (!r.ok) throw new Error("GitHub error " + r.status + ". Please try again.");
+    const j = await r.json();
+    if (j.permissions && j.permissions.push === false)
+      throw new Error('This token can only read. Set Contents to "Read and write" when creating the token.');
+    localStorage.setItem("bs_token", token);
+    localStorage.setItem("bs_owner", owner);
+    localStorage.setItem("bs_repo", repo);
+    await loadFromGitHub();
+    closeLogin();
+    setEditMode(true);
+    setStatus("Editing");
+  } catch (e) {
+    token = "";
+    msg.style.color = "";
+    msg.textContent = e.message;
+  } finally {
+    $("#lpGo").disabled = false;
+  }
+}
+
+function logout(){
+  if ((dirty || busy) && !confirm("You have unsaved changes. Log out anyway?")) return;
+  localStorage.removeItem("bs_token");
+  token = "";
+  pendingImages = [];
+  renderPending();
+  setEditMode(false);
+  setStatus("");
+}
+
+function setEditMode(on){
+  editMode = on;
+  $("#authBtn").textContent = on ? "Log out" : "Owner login";
+  render();
+}
+
+/* ---------- Actions ---------- */
+async function addNote(){
+  const text = $("#noteInput").value.trim();
+  if (!text && !pendingImages.length) return;
+  const btn = $("#addNoteBtn");
+  btn.disabled = true;
+  try {
+    const images = await uploadAll(pendingImages);
+    const now = Date.now();
+    state.notes.push({ id: uid(), text, images, size: $("#noteSize").value || "s",
+                       folderId: $("#noteTarget").value || null, created: now, updated: now });
+    $("#noteInput").value = "";
+    pendingImages = [];
+    renderPending();
+    changed();
+  } catch (e) {
+    setStatus(e.message + " – your note was not added, please try again");
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function moveNote(id, folderId){
+  const n = state.notes.find(x => x.id === id);
+  if (!n || (n.folderId || null) === (folderId || null)) return;
+  n.folderId = folderId || null;
+  changed();
+}
+
+function setNoteSize(n, size){
+  if ((n.size || "s") === size) return;
+  n.size = size;
+  delete n.imgSizes;   // images go back to the automatic size for the new note size
+  changed();
+}
+
+function deleteNote(n){
+  if (!confirm("Delete this note?")) return;
+  state.notes = state.notes.filter(x => x.id !== n.id);
+  (n.images || []).forEach(deleteImage);
+  changed();
+}
+
+function removeNoteImage(n, i){
+  if (!confirm("Remove this image?")) return;
+  const path = (n.images || [])[i];
+  n.images = (n.images || []).filter((_, k) => k !== i);
+  n.updated = Date.now();
+  if (path) { deleteImage(path); if (n.imgSizes) delete n.imgSizes[path]; }
+  if (!n.text && !n.images.length) state.notes = state.notes.filter(x => x.id !== n.id);
+  changed();
+}
+
+// Adds one or more images to an existing note
+async function addImagesToNote(n, files, card){
+  const prepared = await prepareAll(files);
+  if (!prepared.length) return;
+  try {
+    const paths = await uploadAll(prepared);
+    n.images = (n.images || []).concat(paths);
+    n.updated = Date.now();
+    if (card && card.isConnected) {          // update in place so you can keep typing / pasting
+      noteThumbs(card.querySelector(".thumbs"), n);
+      scheduleSave();
+    } else changed();
+  } catch (e) {
+    setStatus(e.message || "Image could not be added");
+  }
+}
+
+function addFolder(){
+  const name = $("#folderInput").value.trim();
+  if (!name) return;
+  state.folders.push({ id: uid(), name, color: newFolderColor });
+  $("#folderInput").value = "";
+  changed();
+}
+
+function deleteFolder(f){
+  const n = state.notes.filter(x => x.folderId === f.id).length;
+  if (!confirm(`Delete folder "${f.name}"?` + (n ? `\nIts ${n} note(s) will move back to Loose notes.` : ""))) return;
+  state.notes.forEach(x => { if (x.folderId === f.id) x.folderId = null; });
+  state.folders = state.folders.filter(x => x.id !== f.id);
+  changed();
+}
+
+function renameFolder(f){
+  const name = prompt("Rename folder:", f.name);
+  if (name && name.trim()) { f.name = name.trim(); changed(); }
+}
+
+function exportData(){
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+  const a = el("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "brainstorm-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// Opens the file picker (multiple images allowed) and passes the chosen files on
+function pickImages(onFiles){
+  const inp = el("input");
+  inp.type = "file";
+  inp.accept = "image/*";
+  inp.multiple = true;
+  inp.addEventListener("change", () => { if (inp.files.length) onFiles([...inp.files]); });
+  inp.click();
+}
+
+/* ---------- Drag & drop ---------- */
+function makeDropZone(zone, getFolderId){
+  zone.addEventListener("dragover", e => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    zone.classList.add("over");
+  });
+  zone.addEventListener("dragleave", e => {
+    if (!zone.contains(e.relatedTarget)) zone.classList.remove("over");
+  });
+  zone.addEventListener("drop", e => {
+    if (!editMode) return;
+    e.preventDefault();
+    zone.classList.remove("over");
+    const id = e.dataTransfer.getData("text/plain");
+    if (id) moveNote(id, getFolderId());
+  });
+}
+
+/* ---------- Rendering ---------- */
+function swatchRow(current, onPick){
+  const wrap = el("div", "swatches");
+  Object.entries(COLORS).forEach(([name, hex]) => {
+    const s = el("button", "swatch" + (name === current ? " sel" : ""));
+    s.style.background = hex;
+    s.title = name;
+    s.addEventListener("click", e => { e.stopPropagation(); onPick(name); });
+    wrap.appendChild(s);
+  });
+  return wrap;
+}
+
+// Turns web links in a note into clickable links that open in a new tab
+function linkify(text){
+  const frag = document.createDocumentFragment();
+  const re = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    let url = m[0].replace(/[.,!?;:)\]'"]+$/, "");   // ignore punctuation at the end
+    frag.append(text.slice(last, m.index));
+    const a = el("a", null, url);
+    a.href = url.toLowerCase().startsWith("www.") ? "https://" + url : url;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    a.draggable = false;
+    a.addEventListener("click", e => e.stopPropagation());
+    a.addEventListener("dblclick", e => e.stopPropagation());
+    frag.append(a);
+    last = m.index + url.length;
+  }
+  frag.append(text.slice(last));
+  return frag;
+}
+
+function noteThumbs(box, n){
+  const paths = n.images || [];
+  const widths = paths.map(p => (n.imgSizes || {})[p]);
+  fillThumbs(box, paths.map(p => localImg[p] || p),
+             editMode ? i => removeNoteImage(n, i) : null,
+             CONFIG.owner ? paths.map(rawUrl) : null,
+             { widths, onResize: editMode ? (i, pct) => setImageSize(n, paths[i], pct) : null });
+}
+
+// Saves (or clears) the custom width of one image in a note
+function setImageSize(n, path, pct){
+  n.imgSizes = n.imgSizes || {};
+  if (pct == null) delete n.imgSizes[path];
+  else n.imgSizes[path] = pct;
+  if (!Object.keys(n.imgSizes).length) delete n.imgSizes;
+  scheduleSave();
+}
+
+function noteEl(n){
+  const size = SIZES[n.size] ? n.size : "s";
+  const card = el("div", "note size-" + size);
+  const txt = el("div", "note-text");
+  if (n.text) txt.append(linkify(n.text));
+  const imgs = el("div", "thumbs");
+  card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
+  noteThumbs(imgs, n);
+  if (!editMode) return card;
+
+  card.draggable = true;
+  card.addEventListener("dragstart", e => {
+    e.dataTransfer.setData("text/plain", n.id);
+    e.dataTransfer.effectAllowed = "move";
+    card.classList.add("dragging");
+  });
+  card.addEventListener("dragend", () => card.classList.remove("dragging"));
+
+  const move = el("select");
+  move.title = "Move to folder";
+  move.append(new Option("Move to…", ""), new Option("Loose notes", "__loose"));
+  state.folders.forEach(f => move.append(new Option(f.name, f.id)));
+  move.addEventListener("change", () => {
+    if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
+  });
+
+  // Size switch: S / M / L
+  const sizes = el("div", "sizes");
+  Object.entries(SIZES).forEach(([key, label]) => {
+    const b = el("button", key === size ? "on" : "", key.toUpperCase());
+    b.title = "Note size: " + label;
+    b.addEventListener("click", e => { e.stopPropagation(); setNoteSize(n, key); });
+    sizes.appendChild(b);
+  });
+
+  const tools = el("div", "note-tools");
+  tools.append(
+    move,
+    sizes,
+    iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
+    iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n)),
+    iconBtn("✕", "Delete note", () => deleteNote(n))
+  );
+  card.appendChild(tools);
+  txt.addEventListener("dblclick", () => editNote(card, n));
+  return card;
+}
+
+function editNote(card, n){
+  card.draggable = false;
+  const ta = el("textarea", "note-edit");
+  ta.value = n.text || "";
+  ta.placeholder = "Edit text, or paste images…";
+  card.querySelector(".note-text").replaceWith(ta);
+  ta.focus();
+  let done = false, uploading = 0;
+
+  // Paste images while editing – you stay in edit mode, so you can paste several one after another
+  ta.addEventListener("paste", async e => {
+    const files = imagesFromClipboard(e);
+    if (!files.length) return;
+    e.preventDefault();
+    e.stopPropagation();
+    uploading++;
+    try { await addImagesToNote(n, files, card); }
+    finally {
+      uploading--;
+      if (!done) ta.focus();
+    }
+  });
+
+  const finish = () => {
+    if (done || uploading) return;
+    done = true;
+    const v = ta.value.trim();
+    if (v !== (n.text || "") && (v || (n.images || []).length)) { n.text = v; n.updated = Date.now(); changed(); }
+    else render();
+  };
+  ta.addEventListener("blur", finish);
+  ta.addEventListener("keydown", e => {
+    if (e.key === "Escape") { ta.value = n.text || ""; finish(); }
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) finish();
+  });
+}
+
+function folderEl(f){
+  const hex = COLORS[f.color] || COLORS.blue;
+  const box = el("div", "folder" + (collapsed[f.id] ? " collapsed" : ""));
+  box.style.setProperty("--c", hex);
+  box.style.setProperty("--tint", hex + "12");
+
+  const notes = state.notes.filter(n => n.folderId === f.id).sort((a, b) => b.created - a.created);
+
+  const head = el("div", "folder-head");
+  head.append(
+    el("span", "caret", collapsed[f.id] ? "▶" : "▼"),
+    el("span", "dot"),
+    el("span", "folder-name", f.name),
+    el("span", "count", "(" + notes.length + ")")
+  );
+  head.addEventListener("click", () => {
+    collapsed[f.id] = !collapsed[f.id];
+    localStorage.setItem("bs_collapsed", JSON.stringify(collapsed));
+    render();
+  });
+
+  if (editMode) {
+    const tools = el("div", "folder-tools");
+    const palette = swatchRow(f.color, c => { f.color = c; changed(); });
+    palette.classList.add("palette");
+    palette.addEventListener("click", e => e.stopPropagation());
+    tools.append(
+      palette,
+      iconBtn("🎨", "Change colour", () => palette.classList.toggle("open")),
+      iconBtn("✎", "Rename folder", () => renameFolder(f)),
+      iconBtn("✕", "Delete folder", () => deleteFolder(f))
+    );
+    head.appendChild(tools);
+  }
+
+  const body = el("div", "folder-body");
+  const grid = el("div", "grid");
+  notes.forEach(n => grid.appendChild(noteEl(n)));
+  body.appendChild(notes.length ? grid : el("div", "empty", editMode ? "Empty – drag notes here" : "Empty"));
+
+  box.append(head, body);
+  makeDropZone(box, () => f.id);
+  return box;
+}
+
+function render(){
+  document.body.classList.toggle("editing", editMode);
+
+  const folderIds = new Set(state.folders.map(f => f.id));
+  const loose = state.notes
+    .filter(n => !n.folderId || !folderIds.has(n.folderId))
+    .sort((a, b) => b.created - a.created);
+  const lg = $("#looseGrid");
+  lg.innerHTML = "";
+  loose.forEach(n => lg.appendChild(noteEl(n)));
+  if (!loose.length) lg.appendChild(el("div", "empty", editMode ? "No loose notes – drop a note here to unfile it" : "No loose notes"));
+
+  const fw = $("#folders");
+  fw.innerHTML = "";
+  state.folders.forEach(f => fw.appendChild(folderEl(f)));
+  if (!state.folders.length) fw.appendChild(el("div", "empty", "No folders yet"));
+
+  const sel = $("#noteTarget"), prev = sel.value;
+  sel.innerHTML = "";
+  sel.append(new Option("Save to: Loose notes", ""));
+  state.folders.forEach(f => sel.append(new Option("Save to: " + f.name, f.id)));
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+
+  const nf = $("#newFolderSwatches");
+  nf.replaceWith(Object.assign(swatchRow(newFolderColor, c => { newFolderColor = c; render(); }),
+                               { id: "newFolderSwatches" }));
+}
+
+/* ---------- Start up ---------- */
+$("#authBtn").addEventListener("click", () => editMode ? logout() : login());
+$("#lpGo").addEventListener("click", doLogin);
+$("#lpCancel").addEventListener("click", closeLogin);
+$("#loginPanel").addEventListener("click", e => { if (e.target.id === "loginPanel") closeLogin(); });
+$("#loginPanel").addEventListener("keydown", e => {
+  if (e.key === "Enter") doLogin();
+  if (e.key === "Escape") closeLogin();
+});
+$("#addNoteBtn").addEventListener("click", addNote);
+$("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
+$("#pickImagesBtn").addEventListener("click", () => pickImages(addToComposer));
+$("#addFolderBtn").addEventListener("click", addFolder);
+$("#folderInput").addEventListener("keydown", e => { if (e.key === "Enter") addFolder(); });
+$("#exportBtn").addEventListener("click", exportData);
+$("#lightbox").addEventListener("click", closeLightbox);
+$("#lightboxImg").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+$("#lbPrev").addEventListener("click", e => { e.stopPropagation(); stepLightbox(-1); });
+$("#lbNext").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+document.addEventListener("keydown", e => {
+  if (!$("#lightbox").classList.contains("open")) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") stepLightbox(-1);
+  if (e.key === "ArrowRight") stepLightbox(1);
+});
+makeDropZone($("#looseZone"), () => null);
+
+// Paste images anywhere on the page (except while editing a note) → they go into the new-note box
+document.addEventListener("paste", e => {
+  if (!editMode) return;
+  const t = e.target;
+  if (t.classList && (t.classList.contains("note-edit") || t.id === "folderInput")) return;
+  const files = imagesFromClipboard(e);
+  if (!files.length) return;
+  e.preventDefault();
+  addToComposer(files);
+  $("#noteInput").focus();
+});
+
+(async function init(){
+  await loadPublic();
+  if (token && CONFIG.owner && CONFIG.repo) {
+    try { await loadFromGitHub(); editMode = true; setStatus("Editing"); }
+    catch (e) { setStatus("Viewing (login expired – click Owner login)"); }
+  }
+  setEditMode(editMode);
+})();
+</script>
+</body>
+</html>
