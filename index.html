@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>pixa dooba tiki mouse!!</title>
+<title>Brainstorm</title>
 <style>
   :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; }
   *{box-sizing:border-box}
@@ -34,33 +34,57 @@
   select{border:1px solid var(--line);border-radius:6px;padding:5px 8px;background:#fff}
   .zone{min-height:70px;border:1px dashed transparent;border-radius:10px;padding:4px;transition:.15s}
   .zone.over{border-color:#aaa;background:#f0f0f0}
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+
+  /* Notes + sizes */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;gap:12px}
   .note{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
-        display:flex;flex-direction:column;gap:8px}
+        display:flex;flex-direction:column;gap:8px;min-width:0}
+  .note.size-m{grid-column:span 2}
+  .note.size-l{grid-column:span 3}
+  .note.size-m .note-text{font-size:15px}
+  .note.size-l .note-text{font-size:16px}
+  @media (max-width:760px){ .note.size-m,.note.size-l{grid-column:auto} }
   body.editing .note{cursor:grab}
   .note.dragging{opacity:.4}
   .note-text{white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
   .note-text:empty{display:none}
   .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
   .note-meta{font-size:11px;color:var(--muted)}
-  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end}
+  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
+  .sizes{display:flex;border:1px solid var(--line);border-radius:5px;overflow:hidden}
+  .sizes button{border:none;border-radius:0;padding:1px 6px;font-size:11px;color:var(--muted);background:#fff}
+  .sizes button.on{background:#222;color:#fff}
   .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
 
   /* Images */
-  .thumbs{display:flex;flex-wrap:wrap;gap:6px}
+  .thumbs{display:grid;gap:6px;grid-template-columns:repeat(auto-fill,minmax(80px,1fr))}
   .thumbs:empty{display:none}
-  .thumb{position:relative}
-  .thumb img{display:block;max-width:100%;max-height:180px;border-radius:6px;border:1px solid var(--line);
-             cursor:zoom-in;background:#f3f3f3}
-  .pending .thumb img{max-height:70px}
+  .thumbs.one{grid-template-columns:1fr}
+  .thumb{position:relative;min-width:0}
+  .thumb img{display:block;width:100%;height:100px;object-fit:cover;border-radius:6px;
+             border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
+  .thumbs.one .thumb img{height:auto;max-height:220px;object-fit:contain}
+  .size-m .thumbs{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}
+  .size-m .thumb img{height:150px}
+  .size-m .thumbs.one .thumb img{height:auto;max-height:340px}
+  .size-l .thumbs{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+  .size-l .thumb img{height:210px}
+  .size-l .thumbs.one .thumb img{height:auto;max-height:480px}
+  .pending{grid-template-columns:repeat(auto-fill,70px)}
+  .pending .thumb img{height:70px}
   .thumb .x{position:absolute;top:3px;right:3px;width:18px;height:18px;padding:0;border:none;border-radius:50%;
             background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:18px;cursor:pointer}
   .lightbox{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
-            background:rgba(0,0,0,.8);cursor:zoom-out}
+            background:rgba(0,0,0,.85);cursor:zoom-out}
   .lightbox.open{display:flex}
-  .lightbox img{max-width:92vw;max-height:92vh;border-radius:6px}
+  .lightbox img{max-width:88vw;max-height:88vh;border-radius:6px}
+  .lb-nav{position:absolute;top:50%;transform:translateY(-50%);border:none;background:rgba(255,255,255,.15);
+          color:#fff;font-size:28px;width:44px;height:60px;border-radius:8px;cursor:pointer}
+  .lb-nav:hover{background:rgba(255,255,255,.3)}
+  #lbPrev{left:16px} #lbNext{right:16px}
+  .lb-count{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);color:#ddd;font-size:12px}
 
   .new-folder{gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
   .new-folder input{border:1px solid var(--line);border-radius:6px;padding:6px 10px;outline:none;min-width:180px}
@@ -86,7 +110,7 @@
 <body>
 
 <header>
-  <h1>pixa dooba tiki mouse!!</h1>
+  <h1>Brainstorm</h1>
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
@@ -96,12 +120,18 @@
 
 <main>
   <div class="composer edit-only">
-    <textarea id="noteInput" placeholder="Jot down an idea, or paste an image (Ctrl/Cmd + V)…  Ctrl/Cmd + Enter to add"></textarea>
+    <textarea id="noteInput" placeholder="Jot down an idea, or paste images (Ctrl/Cmd + V)…  Ctrl/Cmd + Enter to add"></textarea>
     <div class="thumbs pending" id="pendingPreview"></div>
     <div class="row">
       <select id="noteTarget"></select>
+      <select id="noteSize" title="Note size">
+        <option value="s">Size: Small</option>
+        <option value="m">Size: Medium</option>
+        <option value="l">Size: Large</option>
+      </select>
+      <button id="pickImagesBtn" title="Choose one or more images from your computer">Add images</button>
       <button id="addNoteBtn">Add note</button>
-      <span class="hint">Tip: paste images anywhere on the page</span>
+      <span class="hint">Tip: paste as many images as you like before adding the note</span>
     </div>
   </div>
 
@@ -121,7 +151,12 @@
   </section>
 </main>
 
-<div class="lightbox" id="lightbox"><img id="lightboxImg" alt=""></div>
+<div class="lightbox" id="lightbox">
+  <button class="lb-nav" id="lbPrev" title="Previous image">‹</button>
+  <img id="lightboxImg" alt="">
+  <button class="lb-nav" id="lbNext" title="Next image">›</button>
+  <div class="lb-count" id="lbCount"></div>
+</div>
 
 <script>
 /* =====================================================================
@@ -151,6 +186,7 @@ const COLORS = {
   red:"#e5484d", orange:"#f76b15", yellow:"#f5c518", green:"#30a46c",
   blue:"#0090ff", indigo:"#3e63dd", violet:"#8e4ec6"
 };
+const SIZES = { s: "Small", m: "Medium", l: "Large" };
 
 let state = { folders: [], notes: [] };
 let sha = null;
@@ -158,9 +194,10 @@ let token = localStorage.getItem("bs_token") || "";
 let editMode = false;
 let saveTimer = null, saving = false, pending = false, dirty = false, busy = 0;
 let newFolderColor = "blue";
-let pendingImages = [];        // images pasted into the composer, not yet added
+let pendingImages = [];        // images waiting in the new-note box
 const localImg = {};           // images uploaded this session (shown instantly)
 const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
+let lb = { list: [], i: 0 };   // lightbox gallery
 
 const $ = s => document.querySelector(s);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -264,12 +301,16 @@ async function flushSave(){
   }
 }
 
-function changed(){
+// Schedules a save without redrawing the page (used while you are still editing a note)
+function scheduleSave(){
   dirty = true;
-  render();
   setStatus("Unsaved changes…");
   clearTimeout(saveTimer);
   saveTimer = setTimeout(flushSave, 1200);
+}
+function changed(){
+  render();
+  scheduleSave();
 }
 
 window.addEventListener("beforeunload", e => {
@@ -294,7 +335,7 @@ function loadImage(src){
   });
 }
 
-// Turns a pasted image into {dataUrl, ext}; big images are shrunk to save space
+// Turns an image into {dataUrl, ext}; big images are shrunk to save space
 async function prepareImage(file){
   const dataUrl = await readAsDataURL(file);
   const img = await loadImage(dataUrl);
@@ -314,10 +355,17 @@ async function prepareImage(file){
   return { dataUrl, ext };
 }
 
+// Gets every image from a paste (several images at once are supported)
 function imagesFromClipboard(e){
-  const items = [...((e.clipboardData && e.clipboardData.items) || [])];
-  return items.filter(i => i.kind === "file" && i.type.startsWith("image/"))
-              .map(i => i.getAsFile()).filter(Boolean);
+  const cd = e.clipboardData;
+  if (!cd) return [];
+  let files = [...(cd.files || [])].filter(f => f.type.startsWith("image/"));
+  if (!files.length) {
+    files = [...(cd.items || [])]
+      .filter(i => i.kind === "file" && i.type.startsWith("image/"))
+      .map(i => i.getAsFile()).filter(Boolean);
+  }
+  return files;
 }
 
 async function uploadImage(prepared){
@@ -350,55 +398,85 @@ function deleteImage(path){
   });
 }
 
-// Uploads pasted images and returns their saved paths
-async function uploadAll(files){
+// Uploads images one by one and returns their saved paths
+async function uploadAll(prepared){
   busy++;
   const paths = [];
   try {
-    for (let i = 0; i < files.length; i++) {
-      setStatus(`Uploading image ${i + 1} of ${files.length}…`);
-      paths.push(await uploadImage(files[i]));
+    for (let i = 0; i < prepared.length; i++) {
+      setStatus(`Uploading image ${i + 1} of ${prepared.length}…`);
+      paths.push(await uploadImage(prepared[i]));
     }
   } finally { busy--; }
   return paths;
 }
 
-function thumb(src, onRemove, fallback){
-  const wrap = el("div", "thumb");
-  const img = el("img");
-  img.src = src;
-  img.alt = "";
-  img.loading = "lazy";
-  img.draggable = false;
-  if (fallback) img.onerror = () => { if (!img.dataset.f) { img.dataset.f = 1; img.src = fallback; } };
-  img.addEventListener("click", e => {
-    e.stopPropagation();
-    $("#lightboxImg").src = img.src;
-    $("#lightbox").classList.add("open");
-  });
-  wrap.appendChild(img);
-  if (onRemove) {
-    const x = el("button", "x", "✕");
-    x.title = "Remove image";
-    x.addEventListener("click", e => { e.stopPropagation(); onRemove(); });
-    wrap.appendChild(x);
+async function prepareAll(files){
+  const out = [];
+  for (const f of files) {
+    try { out.push(await prepareImage(f)); }
+    catch (e) { alert("Sorry, one image could not be read and was skipped."); }
   }
-  return wrap;
+  return out;
+}
+
+/* ---------- Lightbox (click an image; use ‹ › or arrow keys for other images in the same note) ---------- */
+function openLightbox(list, i){
+  lb = { list, i };
+  showLightbox();
+  $("#lightbox").classList.add("open");
+}
+function showLightbox(){
+  $("#lightboxImg").src = lb.list[lb.i];
+  const many = lb.list.length > 1;
+  $("#lbPrev").style.display = $("#lbNext").style.display = many ? "" : "none";
+  $("#lbCount").textContent = many ? `${lb.i + 1} / ${lb.list.length}` : "";
+}
+function stepLightbox(d){
+  if (lb.list.length < 2) return;
+  lb.i = (lb.i + d + lb.list.length) % lb.list.length;
+  showLightbox();
+}
+const closeLightbox = () => $("#lightbox").classList.remove("open");
+
+/* thumbs container for a list of image sources */
+function fillThumbs(box, sources, onRemove, fallbacks){
+  box.innerHTML = "";
+  box.classList.toggle("one", sources.length === 1);
+  sources.forEach((src, i) => {
+    const wrap = el("div", "thumb");
+    const img = el("img");
+    img.src = src;
+    img.alt = "";
+    img.loading = "lazy";
+    img.draggable = false;
+    const fb = fallbacks && fallbacks[i];
+    if (fb) img.onerror = () => { if (!img.dataset.f) { img.dataset.f = 1; img.src = fb; } };
+    img.addEventListener("click", e => {
+      e.stopPropagation();
+      const list = [...box.querySelectorAll("img")].map(x => x.src);
+      openLightbox(list, i);
+    });
+    wrap.appendChild(img);
+    if (onRemove) {
+      const x = el("button", "x", "✕");
+      x.title = "Remove image";
+      x.addEventListener("click", e => { e.stopPropagation(); onRemove(i); });
+      wrap.appendChild(x);
+    }
+    box.appendChild(wrap);
+  });
 }
 
 function renderPending(){
-  const box = $("#pendingPreview");
-  box.innerHTML = "";
-  pendingImages.forEach((p, i) =>
-    box.appendChild(thumb(p.dataUrl, () => { pendingImages.splice(i, 1); renderPending(); })));
+  fillThumbs($("#pendingPreview"), pendingImages.map(p => p.dataUrl),
+             i => { pendingImages.splice(i, 1); renderPending(); });
 }
 
-async function addPastedToComposer(files){
-  for (const f of files) {
-    try { pendingImages.push(await prepareImage(f)); }
-    catch (e) { alert("Sorry, that image could not be read."); }
-  }
+async function addToComposer(files){
+  pendingImages.push(...await prepareAll(files));
   renderPending();
+  setStatus(pendingImages.length + " image(s) ready – click Add note");
 }
 
 /* ---------- Login / logout ---------- */
@@ -451,8 +529,8 @@ async function addNote(){
   try {
     const images = await uploadAll(pendingImages);
     const now = Date.now();
-    state.notes.push({ id: uid(), text, images, folderId: $("#noteTarget").value || null,
-                       created: now, updated: now });
+    state.notes.push({ id: uid(), text, images, size: $("#noteSize").value || "s",
+                       folderId: $("#noteTarget").value || null, created: now, updated: now });
     $("#noteInput").value = "";
     pendingImages = [];
     renderPending();
@@ -471,6 +549,12 @@ function moveNote(id, folderId){
   changed();
 }
 
+function setNoteSize(n, size){
+  if ((n.size || "s") === size) return;
+  n.size = size;
+  changed();
+}
+
 function deleteNote(n){
   if (!confirm("Delete this note?")) return;
   state.notes = state.notes.filter(x => x.id !== n.id);
@@ -478,13 +562,31 @@ function deleteNote(n){
   changed();
 }
 
-function removeNoteImage(n, path){
+function removeNoteImage(n, i){
   if (!confirm("Remove this image?")) return;
-  n.images = (n.images || []).filter(p => p !== path);
+  const path = (n.images || [])[i];
+  n.images = (n.images || []).filter((_, k) => k !== i);
   n.updated = Date.now();
-  deleteImage(path);
+  if (path) deleteImage(path);
   if (!n.text && !n.images.length) state.notes = state.notes.filter(x => x.id !== n.id);
   changed();
+}
+
+// Adds one or more images to an existing note
+async function addImagesToNote(n, files, card){
+  const prepared = await prepareAll(files);
+  if (!prepared.length) return;
+  try {
+    const paths = await uploadAll(prepared);
+    n.images = (n.images || []).concat(paths);
+    n.updated = Date.now();
+    if (card && card.isConnected) {          // update in place so you can keep typing / pasting
+      noteThumbs(card.querySelector(".thumbs"), n);
+      scheduleSave();
+    } else changed();
+  } catch (e) {
+    setStatus(e.message || "Image could not be added");
+  }
 }
 
 function addFolder(){
@@ -515,6 +617,16 @@ function exportData(){
   a.download = "brainstorm-backup-" + new Date().toISOString().slice(0, 10) + ".json";
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// Opens the file picker (multiple images allowed) and passes the chosen files on
+function pickImages(onFiles){
+  const inp = el("input");
+  inp.type = "file";
+  inp.accept = "image/*";
+  inp.multiple = true;
+  inp.addEventListener("change", () => { if (inp.files.length) onFiles([...inp.files]); });
+  inp.click();
 }
 
 /* ---------- Drag & drop ---------- */
@@ -549,7 +661,7 @@ function swatchRow(current, onPick){
   });
   return wrap;
 }
-  
+
 // Turns web links in a note into clickable links that open in a new tab
 function linkify(text){
   const frag = document.createDocumentFragment();
@@ -571,14 +683,21 @@ function linkify(text){
   frag.append(text.slice(last));
   return frag;
 }
-  
+
+function noteThumbs(box, n){
+  const paths = n.images || [];
+  fillThumbs(box, paths.map(p => localImg[p] || p),
+             editMode ? i => removeNoteImage(n, i) : null,
+             CONFIG.owner ? paths.map(rawUrl) : null);
+}
+
 function noteEl(n){
-  const card = el("div", "note");
+  const size = SIZES[n.size] ? n.size : "s";
+  const card = el("div", "note size-" + size);
   const txt = el("div", "note-text");
   if (n.text) txt.append(linkify(n.text));
   const imgs = el("div", "thumbs");
-  (n.images || []).forEach(p => imgs.appendChild(
-    thumb(localImg[p] || p, editMode ? () => removeNoteImage(n, p) : null, CONFIG.owner ? rawUrl(p) : null)));
+  noteThumbs(imgs, n);
   card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
   if (!editMode) return card;
 
@@ -598,9 +717,20 @@ function noteEl(n){
     if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
   });
 
+  // Size switch: S / M / L
+  const sizes = el("div", "sizes");
+  Object.entries(SIZES).forEach(([key, label]) => {
+    const b = el("button", key === size ? "on" : "", key.toUpperCase());
+    b.title = "Note size: " + label;
+    b.addEventListener("click", e => { e.stopPropagation(); setNoteSize(n, key); });
+    sizes.appendChild(b);
+  });
+
   const tools = el("div", "note-tools");
   tools.append(
     move,
+    sizes,
+    iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
     iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n)),
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
@@ -613,30 +743,23 @@ function editNote(card, n){
   card.draggable = false;
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
-  ta.placeholder = "Edit text, or paste an image…";
+  ta.placeholder = "Edit text, or paste images…";
   card.querySelector(".note-text").replaceWith(ta);
   ta.focus();
-  let done = false, uploading = false;
+  let done = false, uploading = 0;
 
-  // Paste images while editing an existing note
+  // Paste images while editing – you stay in edit mode, so you can paste several one after another
   ta.addEventListener("paste", async e => {
     const files = imagesFromClipboard(e);
     if (!files.length) return;
     e.preventDefault();
     e.stopPropagation();
-    uploading = true;
-    try {
-      const prepared = [];
-      for (const f of files) prepared.push(await prepareImage(f));
-      const paths = await uploadAll(prepared);
-      n.images = (n.images || []).concat(paths);
-      n.text = ta.value.trim();
-      n.updated = Date.now();
-      done = true;
-      changed();
-    } catch (err) {
-      setStatus(err.message || "Image could not be added");
-    } finally { uploading = false; }
+    uploading++;
+    try { await addImagesToNote(n, files, card); }
+    finally {
+      uploading--;
+      if (!done) ta.focus();
+    }
   });
 
   const finish = () => {
@@ -729,15 +852,24 @@ function render(){
 /* ---------- Start up ---------- */
 $("#addNoteBtn").addEventListener("click", addNote);
 $("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
+$("#pickImagesBtn").addEventListener("click", () => pickImages(addToComposer));
 $("#addFolderBtn").addEventListener("click", addFolder);
 $("#folderInput").addEventListener("keydown", e => { if (e.key === "Enter") addFolder(); });
 $("#authBtn").addEventListener("click", () => editMode ? logout() : login());
 $("#exportBtn").addEventListener("click", exportData);
-$("#lightbox").addEventListener("click", () => $("#lightbox").classList.remove("open"));
-document.addEventListener("keydown", e => { if (e.key === "Escape") $("#lightbox").classList.remove("open"); });
+$("#lightbox").addEventListener("click", closeLightbox);
+$("#lightboxImg").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+$("#lbPrev").addEventListener("click", e => { e.stopPropagation(); stepLightbox(-1); });
+$("#lbNext").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+document.addEventListener("keydown", e => {
+  if (!$("#lightbox").classList.contains("open")) return;
+  if (e.key === "Escape") closeLightbox();
+  if (e.key === "ArrowLeft") stepLightbox(-1);
+  if (e.key === "ArrowRight") stepLightbox(1);
+});
 makeDropZone($("#looseZone"), () => null);
 
-// Paste an image anywhere on the page (except while editing an existing note) → goes into the new-note box
+// Paste images anywhere on the page (except while editing a note) → they go into the new-note box
 document.addEventListener("paste", e => {
   if (!editMode) return;
   const t = e.target;
@@ -745,7 +877,7 @@ document.addEventListener("paste", e => {
   const files = imagesFromClipboard(e);
   if (!files.length) return;
   e.preventDefault();
-  addPastedToComposer(files);
+  addToComposer(files);
   $("#noteInput").focus();
 });
 
