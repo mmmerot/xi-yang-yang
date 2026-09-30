@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Brainstorm</title>
+<title>pixel dooba tiki mouse!!</title>
 <style>
   :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; }
   *{box-sizing:border-box}
@@ -61,7 +61,7 @@
   /* Images – they grow and shrink with the note size */
   .thumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
   .thumbs:empty{display:none}
-  .thumb{position:relative;min-width:0;flex:0 0 auto;width:calc(50% - 3px)}
+  .thumb{position:relative;min-width:0;flex:0 0 auto;width:calc(50% - 3px);max-width:100%}
   .thumbs.one .thumb{width:100%}
   .size-m .thumb{width:calc(33.333% - 4px)}
   .size-l .thumb{width:calc(33.333% - 4px)}
@@ -71,12 +71,20 @@
              border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
-  /* Resize handle: drag the bottom-right corner of an image */
-  .grip{position:absolute;right:2px;bottom:2px;width:16px;height:16px;border-radius:4px;cursor:nwse-resize;
-        background:rgba(0,0,0,.5) linear-gradient(135deg,transparent 45%,#fff 45%,#fff 55%,transparent 55%,
-        transparent 70%,#fff 70%,#fff 80%,transparent 80%);opacity:0;transition:opacity .15s;touch-action:none}
-  .thumb:hover .grip,.thumb.resizing .grip{opacity:1}
+
+  /* CHANGED: resize handle – always visible (faint) when logged in, bigger, shows a % label while dragging */
+  .grip{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:5px;cursor:nwse-resize;
+        background:rgba(0,0,0,.55) linear-gradient(135deg,transparent 45%,#fff 45%,#fff 55%,transparent 55%,
+        transparent 70%,#fff 70%,#fff 80%,transparent 80%);opacity:.35;transition:opacity .15s;
+        touch-action:none;outline:none}
+  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
+  .grip:focus{box-shadow:0 0 0 2px #0090ff}
+  @media (hover:none){ .grip{opacity:.9} }
   .thumb.resizing img{outline:2px solid #0090ff}
+  .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
+            background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
+  .thumb.resizing .size-tag{display:block}
+
   .thumb .x{position:absolute;top:3px;right:3px;width:18px;height:18px;padding:0;border:none;border-radius:50%;
             background:rgba(0,0,0,.55);color:#fff;font-size:11px;line-height:18px;cursor:pointer}
   .lightbox{position:fixed;inset:0;z-index:50;display:none;align-items:center;justify-content:center;
@@ -126,7 +134,7 @@
 <body>
 
 <header>
-  <h1>Brainstorm</h1>
+  <h1>pixel dooba tiki mouse!!</h1>
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
@@ -193,8 +201,8 @@
    SETTINGS (optional): you can type your username + repo in the login box instead
    ===================================================================== */
 const CONFIG = {
-  owner:  "",            // e.g. "vanessatan"
-  repo:   "",            // e.g. "brainstorm"
+  owner:  "",            // e.g. "mmmerot"
+  repo:   "",            // e.g. "xi-yang-yang"
   branch: "main",
   path:   "data.json",   // file where your notes are stored (created automatically)
   imageFolder: "images", // folder where pasted images are stored (created automatically)
@@ -507,40 +515,85 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
       x.addEventListener("click", e => { e.stopPropagation(); onRemove(i); });
       wrap.appendChild(x);
     }
-    if (opts.onResize) wrap.appendChild(makeGrip(wrap, box, pct => opts.onResize(i, pct)));
+    if (opts.onResize) {
+      wrap.appendChild(el("div", "size-tag"));
+      wrap.appendChild(makeGrip(wrap, box, img, pct => opts.onResize(i, pct)));
+    }
     box.appendChild(wrap);
   });
 }
 
-// Corner handle: drag to resize an image, double-click to reset it to the automatic size
-function makeGrip(wrap, box, done){
+/* CHANGED: corner handle
+   - drag right/down (diagonally) to enlarge, left/up to shrink; the image keeps its shape
+   - shows the size in % while dragging, snaps to 100% near full width
+   - double-click / double-tap to reset to the automatic size
+   - keyboard: Tab to the handle, arrow keys = ±5%, Delete/Backspace = reset */
+function makeGrip(wrap, box, img, done){
   const g = el("div", "grip");
   g.title = "Drag to resize image · double-click to reset";
-  const card = box.closest(".note");
+  g.tabIndex = 0;
+  const tag = wrap.querySelector(".size-tag");
+  const MIN = 10, MAX = 100;
+  const clamp = v => Math.round(Math.min(MAX, Math.max(MIN, v)));
+  const apply = pct => {
+    wrap.classList.add("custom");
+    wrap.style.setProperty("--w", pct + "%");
+    if (tag) tag.textContent = pct + "%";
+  };
+  const currentPct = () => {
+    const bw = box.getBoundingClientRect().width || 1;
+    return clamp(wrap.getBoundingClientRect().width / bw * 100);
+  };
+  const reset = () => {
+    wrap.classList.remove("custom");
+    wrap.style.removeProperty("--w");
+    done(null);
+  };
+
   g.addEventListener("dragstart", e => e.preventDefault());
   g.addEventListener("mousedown", e => e.stopPropagation());
   g.addEventListener("pointerdown", e => {
     e.preventDefault();
     e.stopPropagation();
-    const c = card || box.closest(".note");
-    const wasDraggable = c && c.draggable;
-    if (c) c.draggable = false;
+    const card = box.closest(".note");
+    const wasDraggable = card && card.draggable;
+    if (card) card.draggable = false;
     g.setPointerCapture(e.pointerId);
-    wrap.classList.add("resizing", "custom");
-    const left = wrap.getBoundingClientRect().left;
-    const boxW = box.getBoundingClientRect().width;
-    let pct = null;
+
+    const startX = e.clientX, startY = e.clientY;
+    const rect = wrap.getBoundingClientRect();
+    const startW = rect.width;
+    const boxW = box.getBoundingClientRect().width || 1;
+    const ratio = (img.naturalWidth && img.naturalHeight)
+      ? img.naturalHeight / img.naturalWidth
+      : (rect.height / (rect.width || 1)) || 1;
+    wrap.classList.add("resizing");
+    apply(clamp(startW / boxW * 100));
+    let pct = null, lastTap = g._lastTap || 0;
+
     const move = ev => {
-      pct = Math.round(Math.min(100, Math.max(15, (ev.clientX - left) / boxW * 100)));
-      wrap.style.setProperty("--w", pct + "%");
+      const dx = ev.clientX - startX;
+      const dyAsW = (ev.clientY - startY) / ratio;         // vertical movement converted to width
+      const delta = Math.abs(dx) >= Math.abs(dyAsW) ? dx : dyAsW;
+      let p = clamp((startW + delta) / boxW * 100);
+      if (p >= 97) p = 100;                                 // snap to full width
+      pct = p;
+      apply(p);
     };
     const up = () => {
       g.removeEventListener("pointermove", move);
       g.removeEventListener("pointerup", up);
       g.removeEventListener("pointercancel", up);
       wrap.classList.remove("resizing");
-      if (c) c.draggable = wasDraggable;
-      if (pct == null) { if (!wrap.style.getPropertyValue("--w")) wrap.classList.remove("custom"); return; }
+      if (card) card.draggable = wasDraggable;
+      if (pct == null) {
+        // no movement: treat two quick taps as a reset (works on touch screens too)
+        const now = Date.now();
+        g._lastTap = now;
+        if (now - lastTap < 350) { g._lastTap = 0; reset(); return; }
+        if (!done._saved && !wrap.dataset.hadCustom) { /* keep current look */ }
+        return;
+      }
       wrap.dataset.justResized = 1;
       setTimeout(() => delete wrap.dataset.justResized, 300);
       done(pct);
@@ -550,11 +603,18 @@ function makeGrip(wrap, box, done){
     g.addEventListener("pointercancel", up);
   });
   g.addEventListener("click", e => e.stopPropagation());
-  g.addEventListener("dblclick", e => {
-    e.stopPropagation();
-    wrap.classList.remove("custom");
-    wrap.style.removeProperty("--w");
-    done(null);
+  g.addEventListener("dblclick", e => { e.stopPropagation(); reset(); });
+  g.addEventListener("keydown", e => {
+    const step = { ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5 }[e.key];
+    if (step) {
+      e.preventDefault(); e.stopPropagation();
+      const p = clamp(currentPct() + step);
+      apply(p);
+      done(p);
+    } else if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault(); e.stopPropagation();
+      reset();
+    }
   });
   return g;
 }
