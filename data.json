@@ -228,7 +228,10 @@
       ],
       "folderId": "muw62k9imbpgn",
       "created": 1791261116138,
-      "updated": 1791261167449
+      "updated": 1791261167449,
+      "imgSizes": {
+        "images/muw6nchst03jm.png": 30
+      }
     }
   ]
 }
