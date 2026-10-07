@@ -34,14 +34,16 @@
       "created": 1790735123851,
       "updated": 1790737573289,
       "span": 1,
-      "h": 269
+      "h": 269,
+      "order": 23
     },
     {
       "id": "munhq6egv57hr",
       "text": "reminder: to make it the smallest possible pixel size, a button should be 1 pixel tall and wide. \n\nwhat to do next: \n- refer to lospec for palettes:\nhttps://lospec.com/palette-list\n\n- download aseprite (maybe i shld just buy it as this point) or libresprite\n\nperspective of scenes:\n- i am imaging a top down scene, think like the game itself. not really isometric but i can give iso a try in the future.",
       "folderId": "munhgm88o89vl",
       "created": 1790735577064,
-      "updated": 1790738929320
+      "updated": 1790738929320,
+      "order": 22
     },
     {
       "id": "munk5wd2896bc",
@@ -55,7 +57,8 @@
       "size": "s",
       "imgSizes": {
         "images/munk5v1bmi47h.png": 64
-      }
+      },
+      "order": 21
     },
     {
       "id": "munkkeube1s9w",
@@ -70,7 +73,8 @@
       "h": 146,
       "imgSizes": {
         "images/munkkdsud541x.png": 100
-      }
+      },
+      "order": 20
     },
     {
       "id": "munq3bjcy8p2u",
@@ -80,7 +84,8 @@
       "created": 1790749627176,
       "updated": 1790749627176,
       "span": 1,
-      "h": 208
+      "h": 208,
+      "order": 19
     },
     {
       "id": "munqmkorl1d85",
@@ -89,7 +94,8 @@
       "size": "s",
       "folderId": "munhgm88o89vl",
       "created": 1790750525498,
-      "updated": 1790750525498
+      "updated": 1790750525498,
+      "order": 18
     },
     {
       "id": "munqny2llwz60",
@@ -99,7 +105,8 @@
       "created": 1790750589501,
       "updated": 1790750589501,
       "span": 1,
-      "h": 100
+      "h": 100,
+      "order": 17
     },
     {
       "id": "munrnu8mbiozx",
@@ -111,7 +118,8 @@
       "size": "s",
       "folderId": "muns3l61gg3ow",
       "created": 1790752264150,
-      "updated": 1790752538036
+      "updated": 1790752538036,
+      "order": 16
     },
     {
       "id": "muns1pbsia88x",
@@ -128,7 +136,8 @@
       "h": 155,
       "imgSizes": {
         "images/muns1nd7u94v6.png": 52.9
-      }
+      },
+      "order": 15
     },
     {
       "id": "munt41rqh3ogv",
@@ -136,7 +145,8 @@
       "images": [],
       "folderId": "munuiws9va62u",
       "created": 1790754700021,
-      "updated": 1790754700021
+      "updated": 1790754700021,
+      "order": 14
     },
     {
       "id": "muntlyq55tati",
@@ -156,8 +166,9 @@
         "images/muux7my4qn6ee.jpg": 50,
         "images/muuwqollf1c65.png": 39,
         "images/muuwsch9u04yw.jpg": 48,
-        "images/muux6jhak5he5.png": 28.6
-      }
+        "images/muux6jhak5he5.png": 27.8
+      },
+      "order": 13
     },
     {
       "id": "muntmwsowrtx8",
@@ -165,7 +176,8 @@
       "images": [],
       "folderId": null,
       "created": 1790755580040,
-      "updated": 1790755580040
+      "updated": 1790755580040,
+      "order": 12
     },
     {
       "id": "munul4fqk4zz3",
@@ -174,7 +186,8 @@
       "folderId": "munuiws9va62u",
       "created": 1790757176246,
       "updated": 1790757176246,
-      "span": 1
+      "span": 1,
+      "order": 11
     },
     {
       "id": "muow2klnu2eur",
@@ -184,7 +197,8 @@
       "created": 1790820136139,
       "updated": 1790820136139,
       "span": 1,
-      "h": 140
+      "h": 140,
+      "order": 10
     },
     {
       "id": "mup5c1loq03io",
@@ -192,7 +206,8 @@
       "images": [],
       "folderId": "munhgm88o89vl",
       "created": 1790835694620,
-      "updated": 1790835694620
+      "updated": 1790835694620,
+      "order": 9
     },
     {
       "id": "muqnrxd2rvqnx",
@@ -200,7 +215,8 @@
       "images": [],
       "folderId": "munuiws9va62u",
       "created": 1790927134886,
-      "updated": 1790927134886
+      "updated": 1790927134886,
+      "order": 8
     },
     {
       "id": "murzeeep908i6",
@@ -208,7 +224,8 @@
       "images": [],
       "folderId": null,
       "created": 1791007125361,
-      "updated": 1791007125361
+      "updated": 1791007125361,
+      "order": 7
     },
     {
       "id": "muuqhuu37vblv",
@@ -217,7 +234,8 @@
       "folderId": "munuiws9va62u",
       "created": 1791173568603,
       "updated": 1791173568603,
-      "span": 1
+      "span": 1,
+      "order": 6
     },
     {
       "id": "muuqs3ezwifqe",
@@ -230,7 +248,8 @@
       "updated": 1791174046283,
       "imgSizes": {
         "images/muuqs1bcdojbr.png": 63.3
-      }
+      },
+      "order": 5
     },
     {
       "id": "muw6may2njotc",
@@ -244,7 +263,8 @@
       "imgSizes": {
         "images/muw6nchst03jm.png": 14.4
       },
-      "span": 2
+      "span": 2,
+      "order": 4
     },
     {
       "id": "muxhvvs2uhzan",
@@ -253,7 +273,8 @@
       "folderId": "muxhw2x1xnqfd",
       "created": 1791340504994,
       "updated": 1791340504994,
-      "span": 1
+      "span": 1,
+      "order": 3
     },
     {
       "id": "muxigwt31g5ah",
@@ -261,7 +282,8 @@
       "images": [],
       "folderId": null,
       "created": 1791341486103,
-      "updated": 1791344262739
+      "updated": 1791344262739,
+      "order": 2
     },
     {
       "id": "muxj7kkfyd0pt",
@@ -271,7 +293,8 @@
       "created": 1791342729951,
       "updated": 1791364246275,
       "span": 1,
-      "h": 583
+      "h": 583,
+      "order": 1
     },
     {
       "id": "muxjk4x8ainil",
@@ -280,7 +303,70 @@
       "folderId": null,
       "created": 1791343316204,
       "updated": 1791343316204,
-      "span": 1
+      "span": 1,
+      "order": 0
     }
-  ]
+  ],
+  "settings": {
+    "font": "system",
+    "size": 14,
+    "styles": [
+      {
+        "id": "plain",
+        "name": "Plain",
+        "bg": "#ffffff",
+        "border": "#e7e7e7",
+        "text": "#222222",
+        "font": ""
+      },
+      {
+        "id": "sticky",
+        "name": "Sticky",
+        "bg": "#fff7c2",
+        "border": "#f0de8a",
+        "text": "#3d3500",
+        "font": ""
+      },
+      {
+        "id": "mint",
+        "name": "Mint",
+        "bg": "#e6f6ec",
+        "border": "#bfe5cc",
+        "text": "#1d3b2a",
+        "font": ""
+      },
+      {
+        "id": "sky",
+        "name": "Sky",
+        "bg": "#e7f2ff",
+        "border": "#c2dcfa",
+        "text": "#12324f",
+        "font": ""
+      },
+      {
+        "id": "blush",
+        "name": "Blush",
+        "bg": "#fdebef",
+        "border": "#f6c9d3",
+        "text": "#4a1d27",
+        "font": ""
+      },
+      {
+        "id": "lavender",
+        "name": "Lavender",
+        "bg": "#f1ebfb",
+        "border": "#d9c9f2",
+        "text": "#2f1f4a",
+        "font": ""
+      },
+      {
+        "id": "night",
+        "name": "Night",
+        "bg": "#2a2a30",
+        "border": "#3a3a42",
+        "text": "#f2f2f2",
+        "font": ""
+      }
+    ]
+  }
 }
