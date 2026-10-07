@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pixa dooba tiki mouse!!</title>
 <style>
-  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; --accent:#0090ff; }
+  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; --accent:#0090ff; --note-size:14px; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
@@ -29,7 +29,7 @@
   body.editing .edit-only{display:flex !important}
   .composer{flex-direction:column;gap:8px;margin-bottom:32px}
   .composer textarea{width:100%;min-height:70px;resize:vertical;padding:12px;border:1px solid var(--line);
-                     border-radius:8px;background:#fff;outline:none;font-size:14px;line-height:1.45}
+                     border-radius:8px;background:#fff;outline:none;font-size:var(--note-size);line-height:1.45}
   .composer textarea:focus,.new-folder input:focus{border-color:#bbb}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .hint{font-size:12px;color:var(--muted)}
@@ -48,35 +48,52 @@
   .md-done{padding:1px 8px;font-size:11px;background:var(--accent);border-color:var(--accent);color:#fff}
   .md-done:hover{background:#0080e0}
 
-  /* Notes */
-  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;
-        gap:12px;align-items:start}
-  .note{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
+  /* NEW: masonry grid – small rows, each note spans as many rows as its height, so gaps fill up */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:row dense;
+        grid-auto-rows:4px;column-gap:12px;row-gap:0;align-items:start}
+  .grid > .empty{grid-column:1/-1;grid-row-end:span 12}
+
+  /* Notes – colours come from the note's style (set in Settings) */
+  .note{position:relative;background:var(--n-bg,#fff);border:1px solid var(--n-border,var(--line));
+        color:var(--n-text,var(--text));font-family:var(--n-font,inherit);border-radius:8px;padding:12px;
         display:flex;flex-direction:column;gap:8px;min-width:0}
   body.editing .note{cursor:grab}
   body.editing .note.is-editing{cursor:auto;border-color:#b9dcff}
-  .note.dragging{opacity:.4}
+  .note.dragging{opacity:.35}
   .note.resizing{border-color:var(--accent)}
-  .note-text{font-size:14px;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
+  /* NEW: blue line showing where a dragged note will land */
+  .note.drop-l::before,.note.drop-r::before{content:"";position:absolute;top:4px;bottom:4px;width:3px;
+        border-radius:2px;background:var(--accent);pointer-events:none}
+  .note.drop-l::before{left:-8px}
+  .note.drop-r::before{right:-8px}
+  .note-text{font-size:var(--note-size);line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
   .note-text:empty{display:none}
-  .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
+  .note-text a{color:inherit;text-decoration:underline;text-underline-offset:2px;word-break:break-all}
   .note-text .md-p,.note-text li{white-space:pre-wrap}
   .note-text .md-gap{height:.8em}
-  .note-text ul,.note-text ol{margin:2px 0;padding-left:20px}
+  .note-text ul,.note-text ol{margin:2px 0;padding-left:1.4em}
   .note-text li{margin:1px 0}
   .note-text li > ul,.note-text li > ol{margin:0}
   .note-text strong{font-weight:700}
-  .note-text s{color:#888}
-  .note-meta{font-size:11px;color:var(--muted);margin-top:auto;flex-shrink:0}
+  .note-text s{opacity:.6}
+  .note-meta{font-size:11px;color:inherit;opacity:.5;margin-top:auto;flex-shrink:0}
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px;flex-shrink:0}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
+  .note-tools button.icon{color:inherit;opacity:.55}
+  .note-tools button.icon:hover{opacity:1}
   .note.is-editing .thumbs{flex-shrink:0}
-  /* CHANGED: editor fills exactly the space left in the locked note and scrolls inside if needed */
+  /* NEW: per-note style picker */
+  .note-styles{display:none;gap:6px;flex-wrap:wrap;justify-content:flex-end;padding-right:10px}
+  .note-styles.open{display:flex}
+  .style-dot{width:18px;height:18px;border-radius:50%;padding:0;border:1px solid;cursor:pointer}
+  .style-dot:hover{transform:scale(1.12)}
+  .style-dot.sel{box-shadow:0 0 0 2px var(--n-bg,#fff),0 0 0 3px var(--accent)}
+
   .note-edit{display:block;width:100%;margin:0;padding:0;border:none;border-radius:3px;background:transparent;
-             font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;outline:none;
+             font:inherit;font-size:var(--note-size);line-height:1.45;color:inherit;resize:none;outline:none;
              flex:1 1 0;min-height:0;overflow-y:auto;
-             box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px #b9dcff}
-  .note-edit:focus{box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px var(--accent)}
+             box-shadow:0 0 0 4px var(--n-bg,#fff),0 0 0 5px #b9dcff}
+  .note-edit:focus{box-shadow:0 0 0 4px var(--n-bg,#fff),0 0 0 5px var(--accent)}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
 
   /* Note resize handles */
@@ -111,19 +128,20 @@
   .thumb.custom{width:var(--w) !important}
   .thumb img{display:block;width:100%;height:auto;border-radius:6px;
              border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
-  .thumb.editable:hover img{border-color:var(--accent)}
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  .grip{position:absolute;right:-5px;bottom:-5px;width:14px;height:14px;border-radius:50%;z-index:2;
-        background:#fff;border:2px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.25);
-        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,transform .15s}
-  .grip::before{content:"";position:absolute;inset:-7px}
-  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
-  .grip:hover,.thumb.resizing .grip{transform:scale(1.2)}
-  .grip:focus{box-shadow:0 0 0 3px rgba(0,144,255,.35)}
-  @media (hover:none){ .grip{opacity:1} }
-  .thumb.resizing img{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  /* CHANGED: minimal rounded-corner image handle (same look as the note corner) */
+  .grip{position:absolute;right:5px;bottom:5px;width:12px;height:12px;z-index:2;cursor:nwse-resize;
+        touch-action:none;outline:none;opacity:0;transition:opacity .15s}
+  .grip::before{content:"";position:absolute;inset:-8px}
+  .grip::after{content:"";position:absolute;right:0;bottom:0;width:10px;height:10px;
+               border-right:2px solid #fff;border-bottom:2px solid #fff;border-bottom-right-radius:5px;
+               filter:drop-shadow(0 0 1.5px rgba(0,0,0,.7));transition:border-color .15s}
+  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus-visible{opacity:1}
+  .grip:hover::after,.thumb.resizing .grip::after,.grip:focus-visible::after{border-color:var(--accent)}
+  @media (hover:none){ .grip{opacity:.9} }
+  .thumb.resizing img{border-color:var(--accent)}
   .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
             background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
   .thumb.resizing .size-tag{display:block}
@@ -165,6 +183,7 @@
   .palette{display:none;margin-right:6px}
   .palette.open{display:flex}
 
+  /* Pop-up panels (login + settings) */
   .login-panel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
                background:rgba(0,0,0,.35)}
   .login-panel[hidden]{display:none}
@@ -176,7 +195,33 @@
   .login-box input:focus{border-color:#bbb}
   .lp-msg{font-size:12px;color:#e5484d;min-height:16px}
   .login-box .row{justify-content:flex-end}
+
+  /* NEW: settings panel */
+  .settings-box{width:min(700px,94vw);max-height:88vh;overflow:auto;gap:14px}
+  .set-head{display:flex;align-items:center;justify-content:space-between}
+  .set-head h3{margin:0}
+  .set-section{border-top:1px solid var(--line);padding-top:12px;display:flex;flex-direction:column;gap:10px}
+  .set-section h4{margin:0;font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
+  .login-box label.set-row{flex-direction:row;align-items:center;gap:10px;color:var(--text);font-size:13px}
+  .set-row select{min-width:200px}
+  .set-row input[type=range]{flex:1;padding:0;border:none}
+  .set-preview{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:var(--note-size);line-height:1.45}
+  .set-preview ul,.set-preview ol{margin:2px 0;padding-left:1.4em}
+  .set-preview s{opacity:.6}
+  .style-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border:1px solid var(--line);border-radius:8px}
+  .style-chip{width:44px;height:32px;border-radius:6px;border:1px solid var(--n-border);background:var(--n-bg);
+              color:var(--n-text);font-family:var(--n-font,inherit);display:flex;align-items:center;
+              justify-content:center;font-weight:600;flex-shrink:0}
+  .login-box .style-row input[type=text]{width:120px;padding:5px 8px}
+  .login-box label.clr{flex-direction:column;align-items:center;gap:2px;font-size:10px}
+  .login-box .style-row input[type=color]{width:30px;height:26px;padding:0;border:1px solid var(--line);
+              border-radius:6px;background:none;cursor:pointer}
+  .style-row select{font-size:12px;padding:4px 6px}
+  .style-tag{font-size:11px;color:var(--muted);padding:0 4px}
+  .style-row .mk-default{font-size:11px;padding:3px 8px}
+  .style-row .icon{margin-left:auto}
 </style>
+<style id="noteStyleSheet"></style>
 </head>
 <body>
 
@@ -184,6 +229,7 @@
   <h1>pixa dooba tiki mouse!!</h1>
   <div class="head-right">
     <span class="status" id="status"></span>
+    <button class="edit-only" id="settingsBtn" title="Fonts, text size and note styles">Settings</button>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
     <button id="authBtn">Owner login</button>
   </div>
@@ -195,9 +241,10 @@
     <div class="thumbs pending" id="pendingPreview"></div>
     <div class="row">
       <select id="noteTarget"></select>
+      <select id="noteStyle" title="Style for the new note"></select>
       <button id="pickImagesBtn" title="Choose one or more images from your computer">Add images</button>
       <button id="addNoteBtn">Add note</button>
-      <span class="hint">**bold** · *italic* · ~~strike~~ · "- " or "1. " for lists · drag a note's edge or corner to resize</span>
+      <span class="hint">**bold** · *italic* · ~~strike~~ · "- " or "1. " for lists · drag notes to rearrange</span>
     </div>
   </div>
 
@@ -227,6 +274,25 @@
     <div class="row">
       <button id="lpCancel">Cancel</button>
       <button id="lpGo">Log in</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW: settings panel -->
+<div class="login-panel" id="settingsPanel" hidden>
+  <div class="login-box settings-box">
+    <div class="set-head"><h3>Settings</h3><button class="icon" id="setClose" title="Close">✕</button></div>
+    <div class="set-section">
+      <h4>Text</h4>
+      <label class="set-row">Font <select id="setFont"></select></label>
+      <label class="set-row">Note text size <input type="range" id="setSize" min="11" max="24" step="1"> <span id="setSizeVal"></span></label>
+      <div class="set-preview" id="setPreview"></div>
+    </div>
+    <div class="set-section">
+      <h4>Note styles</h4>
+      <span class="hint">Use the 🎨 button on a note to apply a style. The default style is used for new notes and notes without a style.</span>
+      <div id="styleList" style="display:flex;flex-direction:column;gap:6px"></div>
+      <div class="row"><button id="addStyleBtn">+ Add style</button></div>
     </div>
   </div>
 </div>
@@ -268,15 +334,44 @@ const COLORS = {
 };
 const OLD_SIZES = { s: 1, m: 2, l: 3 };
 const FOLDER_MIME = "application/x-bs-folder";
+const NOTE_MIME = "application/x-bs-note";
+const ROW = 4;                                   // masonry row height (px) – matches grid-auto-rows
+const NOTE_GAP = 12;                             // space between notes (px)
 
-let state = { folders: [], notes: [] };
+/* NEW: fonts you can choose in Settings (Google fonts load automatically when picked) */
+const FONTS = {
+  system:  { label: "System",               css: '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif' },
+  inter:   { label: "Inter",                css: '"Inter",system-ui,sans-serif',          g: "Inter:wght@400;600;700" },
+  nunito:  { label: "Nunito (rounded)",     css: '"Nunito",system-ui,sans-serif',         g: "Nunito:ital,wght@0,400;0,700;1,400" },
+  lora:    { label: "Lora (serif)",         css: '"Lora",Georgia,serif',                  g: "Lora:ital,wght@0,400;0,700;1,400" },
+  georgia: { label: "Georgia",              css: 'Georgia,"Times New Roman",serif' },
+  caveat:  { label: "Caveat (handwritten)", css: '"Caveat",cursive',                      g: "Caveat:wght@400;700" },
+  patrick: { label: "Patrick Hand",         css: '"Patrick Hand",cursive',                g: "Patrick+Hand" },
+  mono:    { label: "Space Mono",           css: '"Space Mono",ui-monospace,monospace',   g: "Space+Mono:ital,wght@0,400;0,700;1,400" }
+};
+
+/* NEW: starter note styles (edit them in Settings) */
+const DEFAULT_STYLES = [
+  { id: "plain",    name: "Plain",    bg: "#ffffff", border: "#e7e7e7", text: "#222222", font: "" },
+  { id: "sticky",   name: "Sticky",   bg: "#fff7c2", border: "#f0de8a", text: "#3d3500", font: "" },
+  { id: "mint",     name: "Mint",     bg: "#e6f6ec", border: "#bfe5cc", text: "#1d3b2a", font: "" },
+  { id: "sky",      name: "Sky",      bg: "#e7f2ff", border: "#c2dcfa", text: "#12324f", font: "" },
+  { id: "blush",    name: "Blush",    bg: "#fdebef", border: "#f6c9d3", text: "#4a1d27", font: "" },
+  { id: "lavender", name: "Lavender", bg: "#f1ebfb", border: "#d9c9f2", text: "#2f1f4a", font: "" },
+  { id: "night",    name: "Night",    bg: "#2a2a30", border: "#3a3a42", text: "#f2f2f2", font: "" }
+];
+const defaultSettings = () => ({ font: "system", size: 14, styles: DEFAULT_STYLES.map(s => ({ ...s })) });
+
+let state = { folders: [], notes: [], settings: defaultSettings() };
 let sha = null;
 let token = localStorage.getItem("bs_token") || "";
 let editMode = false;
 let saveTimer = null, saving = false, pending = false, dirty = false, busy = 0;
 let newFolderColor = "blue";
 let pendingImages = [];
+let dragNoteId = null;                           // id of the note being dragged
 const localImg = {};
+const loadedFonts = new Set();
 const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
 let lb = { list: [], i: 0 };
 
@@ -300,9 +395,35 @@ function iconBtn(label, title, fn){
   b.addEventListener("click", e => { e.stopPropagation(); fn(); });
   return b;
 }
+
+const hexOr = (v, d) => /^#[0-9a-f]{6}$/i.test(v || "") ? v : d;
+function cleanStyle(x){
+  return {
+    id: String(x.id || "").replace(/[^a-z0-9_-]/gi, "") || uid(),
+    name: String(x.name || "Style").slice(0, 40),
+    bg: hexOr(x.bg, "#ffffff"),
+    border: hexOr(x.border, "#e7e7e7"),
+    text: hexOr(x.text, "#222222"),
+    font: FONTS[x.font] ? x.font : ""
+  };
+}
+
 function normalise(d){
-  return { folders: Array.isArray(d && d.folders) ? d.folders : [],
-           notes:   Array.isArray(d && d.notes)   ? d.notes   : [] };
+  const folders = Array.isArray(d && d.folders) ? d.folders : [];
+  const notes = Array.isArray(d && d.notes) ? d.notes : [];
+  const s = (d && d.settings) || {};
+  const settings = defaultSettings();
+  if (FONTS[s.font]) settings.font = s.font;
+  if (+s.size >= 10 && +s.size <= 30) settings.size = +s.size;
+  if (Array.isArray(s.styles) && s.styles.length) {
+    const st = s.styles.filter(x => x && x.id).map(cleanStyle);
+    if (st.length) settings.styles = st;
+  }
+  // Older data has no saved order – keep the old "newest first" order
+  if (notes.some(n => typeof n.order !== "number")) {
+    [...notes].sort((a, b) => (b.created || 0) - (a.created || 0)).forEach((n, i) => n.order = i);
+  }
+  return { folders, notes, settings };
 }
 function b64encode(str){
   const bytes = new TextEncoder().encode(str);
@@ -312,6 +433,36 @@ function b64encode(str){
 function b64decode(b64){
   const bin = atob(b64.replace(/\n/g, ""));
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
+}
+
+/* ---------- Fonts & styles ---------- */
+function loadFont(key){
+  const f = FONTS[key];
+  if (!f || !f.g || loadedFonts.has(key)) return;
+  loadedFonts.add(key);
+  const link = document.createElement("link");
+  link.rel = "stylesheet";
+  link.href = `https://fonts.googleapis.com/css2?family=${f.g}&display=swap`;
+  document.head.appendChild(link);
+}
+const styleOf = n => state.settings.styles.find(s => s.id === n.style) || state.settings.styles[0];
+
+// Writes one CSS rule per note style, so colour changes show instantly
+function applyStyles(){
+  let css = "";
+  state.settings.styles.forEach(st => {
+    if (st.font) loadFont(st.font);
+    css += `.ns-${st.id}{--n-bg:${st.bg};--n-border:${st.border};--n-text:${st.text};` +
+           (st.font ? `--n-font:${FONTS[st.font].css};` : "") + "}\n";
+  });
+  $("#noteStyleSheet").textContent = css;
+}
+function applySettings(){
+  const s = state.settings;
+  loadFont(s.font);
+  document.body.style.fontFamily = FONTS[s.font].css;
+  document.documentElement.style.setProperty("--note-size", s.size + "px");
+  applyStyles();
 }
 
 /* ---------- GitHub storage ---------- */
@@ -555,7 +706,6 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
       wrap.appendChild(x);
     }
     if (opts.onResize) {
-      wrap.classList.add("editable");
       wrap.appendChild(el("div", "size-tag"));
       wrap.appendChild(makeGrip(wrap, box, img, pct => opts.onResize(i, pct)));
     }
@@ -666,7 +816,7 @@ const noteSpan = n => Math.max(1, n.span || OLD_SIZES[n.size] || 1);
 function gridInfo(grid){
   const cs = getComputedStyle(grid);
   const cols = Math.max(1, cs.gridTemplateColumns.split(" ").filter(Boolean).length);
-  const gap = parseFloat(cs.columnGap) || 12;
+  const gap = parseFloat(cs.columnGap) || NOTE_GAP;
   const colW = (grid.clientWidth - gap * (cols - 1)) / cols;
   return { cols, gap, colW };
 }
@@ -685,7 +835,15 @@ function fitNotes(){
 let fitTimer;
 window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitNotes, 100); });
 
-/* NEW: lock / unlock a note's exact height */
+/* NEW: masonry – each note takes as many small rows as its height needs, so there are no big gaps */
+function setRowSpan(card){
+  const grid = card.parentElement;
+  if (!grid || !grid.classList.contains("grid")) return;
+  const h = card.getBoundingClientRect().height;
+  card.style.gridRowEnd = "span " + Math.max(1, Math.ceil((h + NOTE_GAP) / ROW));
+}
+const masonry = new ResizeObserver(entries => entries.forEach(en => setRowSpan(en.target)));
+
 function lockHeight(card, h){
   const px = Math.round(h) + "px";
   card.style.height = px;
@@ -729,7 +887,6 @@ function startNoteResize(e, card, n, dir, handle){
   const { cols, gap, colW } = gridInfo(grid);
   const rect = card.getBoundingClientRect();
 
-  // Smallest height the note can have (its content height, or 100px while editing)
   let natural;
   if (editing) natural = 100;
   else {
@@ -797,7 +954,7 @@ function startNoteResize(e, card, n, dir, handle){
     }
     card.dataset.span = span;
     applySpan(card, span);
-    if (editing) lockHeight(card, dir !== "r" ? hgt : rect.height);   // stays locked at the new size
+    if (editing) lockHeight(card, dir !== "r" ? hgt : rect.height);
     else card.style.minHeight = n.h ? n.h + "px" : "";
     scheduleSave();
   };
@@ -1097,6 +1254,7 @@ function logout(){
   token = "";
   pendingImages = [];
   renderPending();
+  closeSettings();
   setEditMode(false);
   setStatus("");
 }
@@ -1107,7 +1265,97 @@ function setEditMode(on){
   render();
 }
 
+/* ---------- NEW: Settings panel ---------- */
+function fontOptions(select, includePageFont){
+  select.innerHTML = "";
+  if (includePageFont) select.append(new Option("Page font", ""));
+  Object.entries(FONTS).forEach(([k, f]) => select.append(new Option(f.label, k)));
+}
+
+function openSettings(){
+  const s = state.settings;
+  fontOptions($("#setFont"), false);
+  $("#setFont").value = s.font;
+  $("#setSize").value = s.size;
+  $("#setSizeVal").textContent = s.size + "px";
+  $("#setPreview").replaceChildren(renderMarkdown(
+    "The quick brown fox — **bold**, *italic* and ~~strikethrough~~\n- a bullet point\n1. a numbered item"));
+  renderStyleList();
+  $("#settingsPanel").hidden = false;
+}
+function closeSettings(){ $("#settingsPanel").hidden = true; }
+
+function renderStyleList(){
+  const list = $("#styleList");
+  list.innerHTML = "";
+  const styles = state.settings.styles;
+  styles.forEach((st, i) => {
+    const row = el("div", "style-row");
+    const chip = el("div", "style-chip ns-" + st.id, "Aa");
+
+    const name = el("input");
+    name.type = "text";
+    name.value = st.name;
+    name.placeholder = "Style name";
+    name.addEventListener("input", () => { st.name = name.value; scheduleSave(); });
+    name.addEventListener("change", () => {
+      if (!st.name.trim()) { st.name = "Style"; name.value = st.name; }
+      render();
+    });
+
+    const colour = (label, key) => {
+      const lab = el("label", "clr");
+      const inp = el("input");
+      inp.type = "color";
+      inp.value = st[key];
+      inp.addEventListener("input", () => { st[key] = inp.value; applyStyles(); scheduleSave(); });
+      inp.addEventListener("change", () => render());   // refresh the 🎨 swatches on notes
+      lab.append(inp, document.createTextNode(label));
+      return lab;
+    };
+
+    const font = el("select");
+    font.title = "Font for notes with this style";
+    fontOptions(font, true);
+    font.value = st.font || "";
+    font.addEventListener("change", () => { st.font = font.value; applyStyles(); scheduleSave(); });
+
+    row.append(chip, name, colour("Fill", "bg"), colour("Border", "border"), colour("Text", "text"), font);
+
+    if (i === 0) row.append(el("span", "style-tag", "Default"));
+    else {
+      const mk = el("button", "mk-default", "Make default");
+      mk.addEventListener("click", () => {
+        styles.splice(i, 1);
+        styles.unshift(st);
+        renderStyleList();
+        changed();
+      });
+      row.append(mk);
+    }
+    row.append(iconBtn("✕", "Delete style", () => {
+      if (styles.length < 2) { alert("Keep at least one style."); return; }
+      if (!confirm(`Delete style "${st.name}"? Notes using it will switch to the default style.`)) return;
+      styles.splice(i, 1);
+      state.notes.forEach(n => { if (n.style === st.id) delete n.style; });
+      renderStyleList();
+      changed();
+    }));
+    list.append(row);
+  });
+}
+
+function addStyle(){
+  state.settings.styles.push({ id: uid(), name: "New style", bg: "#ffffff", border: "#e7e7e7", text: "#222222", font: "" });
+  applyStyles();
+  renderStyleList();
+  changed();
+}
+
 /* ---------- Actions ---------- */
+const minOrder = () => state.notes.reduce((m, n) => Math.min(m, n.order), 0);
+const maxOrder = () => state.notes.reduce((m, n) => Math.max(m, n.order), 0);
+
 async function addNote(){
   const text = $("#noteInput").value.trim();
   if (!text && !pendingImages.length) return;
@@ -1116,8 +1364,11 @@ async function addNote(){
   try {
     const images = await uploadAll(pendingImages);
     const now = Date.now();
-    state.notes.push({ id: uid(), text, images,
-                       folderId: $("#noteTarget").value || null, created: now, updated: now });
+    const note = { id: uid(), text, images, folderId: $("#noteTarget").value || null,
+                   created: now, updated: now, order: minOrder() - 1 };   // new notes go to the top
+    const st = $("#noteStyle").value;
+    if (st) note.style = st;
+    state.notes.push(note);
     $("#noteInput").value = "";
     pendingImages = [];
     renderPending();
@@ -1129,10 +1380,34 @@ async function addNote(){
   }
 }
 
+// Moves a note into a folder (or Loose notes) and puts it at the end
 function moveNote(id, folderId){
   const n = state.notes.find(x => x.id === id);
   if (!n || (n.folderId || null) === (folderId || null)) return;
   n.folderId = folderId || null;
+  n.order = maxOrder() + 1;
+  changed();
+}
+
+// The notes shown in one container (a folder, or Loose notes when fid is null), in order
+function notesIn(fid){
+  const folderIds = new Set(state.folders.map(f => f.id));
+  return state.notes
+    .filter(n => fid ? n.folderId === fid : (!n.folderId || !folderIds.has(n.folderId)))
+    .sort((a, b) => a.order - b.order);
+}
+
+/* NEW: drop a note before/after another note (works across folders too) */
+function reorderNote(dragId, targetId, after){
+  const drag = state.notes.find(x => x.id === dragId);
+  const target = state.notes.find(x => x.id === targetId);
+  if (!drag || !target || drag === target) return;
+  const folderIds = new Set(state.folders.map(f => f.id));
+  const fid = target.folderId && folderIds.has(target.folderId) ? target.folderId : null;
+  drag.folderId = fid;
+  const list = notesIn(fid).filter(x => x !== drag);
+  list.splice(list.indexOf(target) + (after ? 1 : 0), 0, drag);
+  list.forEach((x, k) => x.order = k);
   changed();
 }
 
@@ -1228,7 +1503,12 @@ function pickImages(onFiles){
 
 /* ---------- Drag & drop ---------- */
 const isFolderDrag = e => [...(e.dataTransfer.types || [])].includes(FOLDER_MIME);
+function clearDropMarks(){
+  document.querySelectorAll(".drop-l,.drop-r,.zone.over,.folder.over")
+    .forEach(x => x.classList.remove("drop-l", "drop-r", "over"));
+}
 
+// Folder boxes and the Loose notes area: drop a note in empty space to move it there
 function makeDropZone(zone, getFolderId){
   const clearMarks = () => zone.classList.remove("over", "drop-before", "drop-after");
   zone.addEventListener("dragover", e => {
@@ -1244,6 +1524,7 @@ function makeDropZone(zone, getFolderId){
       zone.classList.toggle("drop-before", !after);
       return;
     }
+    if (!dragNoteId) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     zone.classList.add("over");
@@ -1260,8 +1541,52 @@ function makeDropZone(zone, getFolderId){
       reorderFolder(e.dataTransfer.getData(FOLDER_MIME), getFolderId(), after);
       return;
     }
-    const id = e.dataTransfer.getData("text/plain");
+    const id = dragNoteId || e.dataTransfer.getData(NOTE_MIME);
     if (id) moveNote(id, getFolderId());
+  });
+}
+
+/* NEW: each note is also a drop target, so notes can be shuffled around */
+function makeNoteDraggable(card, n){
+  card.draggable = true;
+  card.addEventListener("dragstart", e => {
+    if (card.classList.contains("is-editing")) { e.preventDefault(); return; }
+    dragNoteId = n.id;
+    e.dataTransfer.setData(NOTE_MIME, n.id);
+    e.dataTransfer.setData("text/plain", n.id);
+    e.dataTransfer.effectAllowed = "move";
+    setTimeout(() => card.classList.add("dragging"), 0);
+  });
+  card.addEventListener("dragend", () => {
+    card.classList.remove("dragging");
+    dragNoteId = null;
+    clearDropMarks();
+  });
+  card.addEventListener("dragover", e => {
+    if (!dragNoteId || dragNoteId === n.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = "move";
+    const r = card.getBoundingClientRect();
+    const after = e.clientX > r.left + r.width / 2;
+    document.querySelectorAll(".note.drop-l,.note.drop-r,.zone.over,.folder.over").forEach(x => {
+      if (x !== card) x.classList.remove("drop-l", "drop-r", "over");
+    });
+    card.classList.toggle("drop-r", after);
+    card.classList.toggle("drop-l", !after);
+  });
+  card.addEventListener("dragleave", e => {
+    if (!card.contains(e.relatedTarget)) card.classList.remove("drop-l", "drop-r");
+  });
+  card.addEventListener("drop", e => {
+    if (!dragNoteId || dragNoteId === n.id) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const after = card.classList.contains("drop-r");
+    const id = dragNoteId;
+    dragNoteId = null;
+    clearDropMarks();
+    reorderNote(id, n.id, after);
   });
 }
 
@@ -1297,7 +1622,8 @@ function setImageSize(n, path, pct){
 
 function noteEl(n){
   const span = noteSpan(n);
-  const card = el("div", "note" + (span >= 2 ? " wide" : ""));
+  const st = styleOf(n);
+  const card = el("div", "note ns-" + st.id + (span >= 2 ? " wide" : ""));
   card.dataset.span = span;
   card.style.gridColumn = "span " + span;
   if (n.h) card.style.minHeight = n.h + "px";
@@ -1306,15 +1632,10 @@ function noteEl(n){
   const imgs = el("div", "thumbs");
   card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
   noteThumbs(imgs, n);
+  masonry.observe(card);
   if (!editMode) return card;
 
-  card.draggable = true;
-  card.addEventListener("dragstart", e => {
-    e.dataTransfer.setData("text/plain", n.id);
-    e.dataTransfer.effectAllowed = "move";
-    card.classList.add("dragging");
-  });
-  card.addEventListener("dragend", () => card.classList.remove("dragging"));
+  makeNoteDraggable(card, n);
 
   const move = el("select");
   move.title = "Move to folder";
@@ -1324,41 +1645,51 @@ function noteEl(n){
     if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
   });
 
+  // NEW: style picker (opened with the 🎨 button)
+  const picker = el("div", "note-styles");
+  state.settings.styles.forEach(s => {
+    const b = el("button", "style-dot" + (s === st ? " sel" : ""));
+    b.style.background = s.bg;
+    b.style.borderColor = s.border;
+    b.title = s.name;
+    b.addEventListener("click", e => { e.stopPropagation(); n.style = s.id; changed(); });
+    picker.append(b);
+  });
+
   const tools = el("div", "note-tools");
   const pencil = iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n));
-  pencil.addEventListener("mousedown", e => e.preventDefault());   // no focus jump before the size is locked
+  pencil.addEventListener("mousedown", e => e.preventDefault());
   tools.append(
     move,
+    iconBtn("🎨", "Note style", () => picker.classList.toggle("open")),
     iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
     pencil,
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
-  card.appendChild(tools);
+  card.append(picker, tools);
   card.append(...makeNoteResizers(card, n));
   txt.addEventListener("dblclick", () => editNote(card, n));
   return card;
 }
 
-/* CHANGED: the note is locked to its EXACT current size the moment you press the pencil.
-   The editor fills the space where the text was and scrolls inside if you type more. */
+/* The note is locked to its EXACT current size while editing */
 function editNote(card, n){
   const txtEl = card.querySelector(".note-text");
   if (!txtEl || card.classList.contains("is-editing")) return;
 
-  // 1. Measure and lock the exact height BEFORE anything changes
+  const picker = card.querySelector(".note-styles");
+  if (picker) picker.classList.remove("open");
   const cardH = card.getBoundingClientRect().height;
   lockHeight(card, cardH);
   card.draggable = false;
   card.classList.add("is-editing");
 
-  // 2. Editor goes exactly where the text was
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
   ta.placeholder = "Type here… (paste images too)";
   txtEl.replaceWith(ta);
   attachMdKeys(ta);
 
-  // 3. Formatting buttons + Done replace the bottom tools row (no extra space used)
   const tools = card.querySelector(".note-tools");
   const doneBtn = el("button", "md-done", "Done");
   doneBtn.type = "button";
@@ -1409,7 +1740,7 @@ function folderEl(f, idx){
   box.style.setProperty("--c", hex);
   box.style.setProperty("--tint", hex + "12");
 
-  const notes = state.notes.filter(n => n.folderId === f.id).sort((a, b) => b.created - a.created);
+  const notes = notesIn(f.id);
 
   const head = el("div", "folder-head");
   if (editMode) {
@@ -1469,11 +1800,10 @@ function folderEl(f, idx){
 
 function render(){
   document.body.classList.toggle("editing", editMode);
+  applySettings();
+  masonry.disconnect();                          // old notes are about to be replaced
 
-  const folderIds = new Set(state.folders.map(f => f.id));
-  const loose = state.notes
-    .filter(n => !n.folderId || !folderIds.has(n.folderId))
-    .sort((a, b) => b.created - a.created);
+  const loose = notesIn(null);
   const lg = $("#looseGrid");
   lg.innerHTML = "";
   loose.forEach(n => lg.appendChild(noteEl(n)));
@@ -1489,6 +1819,11 @@ function render(){
   sel.append(new Option("Save to: Loose notes", ""));
   state.folders.forEach(f => sel.append(new Option("Save to: " + f.name, f.id)));
   if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+
+  const ss = $("#noteStyle"), prevStyle = ss.value;
+  ss.innerHTML = "";
+  state.settings.styles.forEach(s => ss.append(new Option("Style: " + s.name, s.id)));
+  if ([...ss.options].some(o => o.value === prevStyle)) ss.value = prevStyle;
 
   const nf = $("#newFolderSwatches");
   nf.replaceWith(Object.assign(swatchRow(newFolderColor, c => { newFolderColor = c; render(); }),
@@ -1508,6 +1843,20 @@ $("#loginPanel").addEventListener("keydown", e => {
   if (e.key === "Enter") doLogin();
   if (e.key === "Escape") closeLogin();
 });
+
+$("#settingsBtn").addEventListener("click", openSettings);
+$("#setClose").addEventListener("click", closeSettings);
+$("#settingsPanel").addEventListener("click", e => { if (e.target.id === "settingsPanel") closeSettings(); });
+$("#settingsPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeSettings(); });
+$("#setFont").addEventListener("change", e => { state.settings.font = e.target.value; applySettings(); scheduleSave(); });
+$("#setSize").addEventListener("input", e => {
+  state.settings.size = +e.target.value;
+  $("#setSizeVal").textContent = state.settings.size + "px";
+  applySettings();
+  scheduleSave();
+});
+$("#addStyleBtn").addEventListener("click", addStyle);
+
 $("#addNoteBtn").addEventListener("click", addNote);
 $("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
 $("#pickImagesBtn").addEventListener("click", () => pickImages(addToComposer));
@@ -1530,6 +1879,7 @@ document.addEventListener("paste", e => {
   if (!editMode) return;
   const t = e.target;
   if (t.classList && (t.classList.contains("note-edit") || t.id === "folderInput")) return;
+  if (t.closest && t.closest("#settingsPanel")) return;
   const files = imagesFromClipboard(e);
   if (!files.length) return;
   e.preventDefault();
