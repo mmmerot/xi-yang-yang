@@ -310,7 +310,7 @@
     }
   ],
   "settings": {
-    "font": "lora",
+    "font": "mono",
     "size": 12,
     "styles": [
       {
