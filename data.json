@@ -310,7 +310,7 @@
     }
   ],
   "settings": {
-    "font": "system",
+    "font": "inter",
     "size": 12,
     "styles": [
       {
