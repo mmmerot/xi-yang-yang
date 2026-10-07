@@ -37,26 +37,30 @@
   .zone{min-height:70px;border:1px dashed transparent;border-radius:10px;padding:4px;transition:.15s}
   .zone.over{border-color:#aaa;background:#f0f0f0}
 
-  /* NEW: formatting toolbar (composer + note editor) */
+  /* Formatting toolbar */
   .md-bar{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
   .md-btn{padding:2px 8px;font-size:12px;min-width:28px;line-height:18px;color:#555}
   .md-btn.md-b{font-weight:700}
   .md-btn.md-i{font-style:italic}
   .md-btn.md-s{text-decoration:line-through}
+  /* CHANGED: inside a note, the toolbar sits in the tools row (not above the text) */
+  .note-tools .md-bar{margin-right:auto;gap:2px}
+  .note-tools .md-btn{padding:1px 6px;min-width:24px;font-size:11px}
+  .md-done{padding:1px 8px;font-size:11px;background:var(--accent);border-color:var(--accent);color:#fff}
+  .md-done:hover{background:#0080e0}
 
   /* Notes */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;
         gap:12px;align-items:start}
   .note{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
         display:flex;flex-direction:column;gap:8px;min-width:0}
-  /* CHANGED: removed ".note.wide .note-text{font-size:15px}" so text size stays the same when a note is widened */
   body.editing .note{cursor:grab}
+  body.editing .note.is-editing{cursor:auto;border-color:#b9dcff}
   .note.dragging{opacity:.4}
   .note.resizing{border-color:var(--accent)}
   .note-text{font-size:14px;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
   .note-text:empty{display:none}
   .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
-  /* NEW: markdown output */
   .note-text .md-p,.note-text li{white-space:pre-wrap}
   .note-text .md-gap{height:.8em}
   .note-text ul,.note-text ol{margin:2px 0;padding-left:20px}
@@ -67,12 +71,16 @@
   .note-meta{font-size:11px;color:var(--muted);margin-top:auto}
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
-  /* CHANGED: editor uses the same font size as the note text */
-  .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none;
-             font-size:14px;line-height:1.45}
+  /* CHANGED: edit-in-place – the editor has no border/padding of its own, so the text stays exactly where it was.
+     The blue ring is drawn with box-shadow, which takes up no space. */
+  .note-edit{display:block;width:100%;margin:0;padding:0;border:none;border-radius:3px;background:transparent;
+             font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;overflow:hidden;
+             outline:none;flex:1 0 auto;min-height:1.45em;
+             box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px #b9dcff}
+  .note-edit:focus{box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px var(--accent)}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
 
-  /* NEW: note resize handles – right edge, bottom edge and corner (replace the old striped corner) */
+  /* Note resize handles */
   .rz{position:absolute;z-index:2;touch-action:none}
   .rz-r{top:12px;bottom:16px;right:-6px;width:12px;cursor:ew-resize}
   .rz-b{left:12px;right:16px;bottom:-6px;height:12px;cursor:ns-resize}
@@ -88,7 +96,6 @@
   .rz-r:hover::after,.rz-b:hover::after,.rz-r.active::after,.rz-b.active::after{background:var(--accent)}
   .rz-c:hover::after,.rz-c.active::after{border-color:var(--accent)}
   @media (hover:none){ .rz::after{opacity:.8} }
-  /* Outline that follows your pointer while resizing a note */
   .rz-ghost{position:fixed;z-index:40;pointer-events:none;border:2px dashed var(--accent);border-radius:8px;
             background:rgba(0,144,255,.06);transition:width .12s ease}
   .rz-ghost span{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;
@@ -96,7 +103,7 @@
   body.rz-active{-webkit-user-select:none;user-select:none}
   body.rz-active *{cursor:inherit !important}
 
-  /* Images – they grow and shrink with the note */
+  /* Images */
   .thumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
   .thumbs:empty{display:none}
   .thumb{position:relative;min-width:0;flex:0 0 auto;width:calc(50% - 3px);max-width:100%}
@@ -109,11 +116,10 @@
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  /* CHANGED: image resize handle is now a small round corner dot (like Word / PowerPoint) */
   .grip{position:absolute;right:-5px;bottom:-5px;width:14px;height:14px;border-radius:50%;z-index:2;
         background:#fff;border:2px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.25);
         cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,transform .15s}
-  .grip::before{content:"";position:absolute;inset:-7px}   /* bigger, invisible grab area */
+  .grip::before{content:"";position:absolute;inset:-7px}
   .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
   .grip:hover,.thumb.resizing .grip{transform:scale(1.2)}
   .grip:focus{box-shadow:0 0 0 3px rgba(0,144,255,.35)}
@@ -160,7 +166,6 @@
   .palette{display:none;margin-right:6px}
   .palette.open{display:flex}
 
-  /* Login panel */
   .login-panel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
                background:rgba(0,0,0,.35)}
   .login-panel[hidden]{display:none}
@@ -515,7 +520,6 @@ function stepLightbox(d){
 }
 const closeLightbox = () => $("#lightbox").classList.remove("open");
 
-/* Shared helpers for any resize drag (stops text selection and keeps one cursor while dragging) */
 function beginDragCursor(cursor){
   document.body.classList.add("rz-active");
   document.body.style.cursor = cursor;
@@ -562,10 +566,7 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
   });
 }
 
-/* CHANGED: image corner handle
-   - the corner follows your pointer smoothly (pointer is projected onto the image's diagonal, so it never jumps)
-   - updates once per frame for a smooth drag
-   - double-click to reset; keyboard: arrow keys ±5%, Delete = reset */
+/* Image corner handle */
 function makeGrip(wrap, box, img, done){
   const g = el("div", "grip");
   g.title = "Drag to resize image · double-click to reset";
@@ -589,7 +590,7 @@ function makeGrip(wrap, box, img, done){
   };
 
   g.addEventListener("dragstart", e => e.preventDefault());
-  g.addEventListener("mousedown", e => e.stopPropagation());
+  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
   g.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -614,7 +615,6 @@ function makeGrip(wrap, box, img, done){
       raf = 0;
       const dx = last.clientX - startX, dy = last.clientY - startY;
       if (pct == null && Math.hypot(dx, dy) < 3) return;
-      // where the corner should be = pointer projected onto the image diagonal
       const t = ((W + dx) * W + (H + dy) * H) / (W * W + H * H);
       let p = clamp(W * t / boxW * 100);
       if (p >= 97) p = 100;
@@ -688,20 +688,16 @@ function fitNotes(){
 let fitTimer;
 window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitNotes, 100); });
 
-/* NEW: note resize handles
-   - right edge = width, bottom edge = height, corner = both
-   - while dragging, a dashed outline follows your pointer; other notes don't jump around until you let go
-   - the note can't be made shorter than its content (dragging back to the content height = auto height)
-   - Esc cancels, double-click any handle resets the size */
 function makeNoteResizers(card, n){
   return [["r", "Drag to change width"], ["b", "Drag to change height"], ["c", "Drag to resize"]].map(([dir, tip]) => {
     const h = el("div", "rz rz-" + dir);
     h.title = tip + " · double-click to reset";
     h.addEventListener("dragstart", e => e.preventDefault());
-    h.addEventListener("mousedown", e => e.stopPropagation());
+    h.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
     h.addEventListener("click", e => e.stopPropagation());
     h.addEventListener("dblclick", e => {
       e.stopPropagation();
+      if (card.classList.contains("is-editing")) return;
       delete n.span; delete n.h; delete n.size;
       changed();
     });
@@ -721,7 +717,6 @@ function startNoteResize(e, card, n, dir, handle){
 
   const { cols, gap, colW } = gridInfo(grid);
   const rect = card.getBoundingClientRect();
-  // height the note needs for its content (it can't be made smaller than this)
   const prevMin = card.style.minHeight;
   card.style.minHeight = "";
   const natural = card.getBoundingClientRect().height;
@@ -746,7 +741,7 @@ function startNoteResize(e, card, n, dir, handle){
     if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
     moved = true;
     ghost.hidden = false;
-    const r = card.getBoundingClientRect();          // follows the page if you scroll while dragging
+    const r = card.getBoundingClientRect();
     let w = r.width;
     if (dir !== "b") {
       span = Math.min(cols, Math.max(1, Math.round((rect.width + dx + gap) / (colW + gap))));
@@ -775,7 +770,8 @@ function startNoteResize(e, card, n, dir, handle){
     card.classList.remove("resizing");
     handle.classList.remove("active");
     endDragCursor();
-    card.draggable = true;
+    const editing = card.classList.contains("is-editing");
+    card.draggable = !editing;
     if (!commit || !moved) return;
     n.span = span;
     delete n.size;
@@ -786,6 +782,7 @@ function startNoteResize(e, card, n, dir, handle){
     card.dataset.span = span;
     applySpan(card, span);
     card.style.minHeight = n.h ? n.h + "px" : "";
+    if (editing && card._refit) card._refit();   // editor re-fills the resized note
     scheduleSave();
   };
   const onUp = () => finish(true);
@@ -808,10 +805,7 @@ async function addToComposer(files){
   setStatus(pendingImages.length + " image(s) ready – click Add note");
 }
 
-/* ---------- NEW: Markdown (display) ----------
-   **bold** / __bold__, *italic* / _italic_, ~~strikethrough~~,
-   "- ", "* ", "+ " bullet lists, "1. " / "1) " numbered lists (indent with spaces/Tab to nest),
-   \* to show a literal symbol. Web links are still clickable. Built with safe DOM nodes (no innerHTML). */
+/* ---------- Markdown (display) ---------- */
 const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])\s+/;
 
 function makeLink(url){
@@ -831,7 +825,6 @@ function inlineMd(text){
   const isWord = c => !!c && /[A-Za-z0-9]/.test(c);
   let last = 0, m;
   while ((m = re.exec(text))) {
-    // underscores inside words (e.g. file_name_here) are left alone
     const usesUnderscore = (m[2] === "__") || m[6] != null;
     if (usesUnderscore && (isWord(text[m.index - 1]) || isWord(text[m.index + m[0].length]))) {
       re.lastIndex = m.index + 1;
@@ -844,7 +837,7 @@ function inlineMd(text){
     else if (m[5] != null) { const s = el("em");     s.append(inlineMd(m[5])); frag.append(s); }
     else if (m[6] != null) { const s = el("em");     s.append(inlineMd(m[6])); frag.append(s); }
     else {
-      const url = m[7].replace(/[.,!?;:)\]'"*_~]+$/, "");   // ignore punctuation / markers at the end
+      const url = m[7].replace(/[.,!?;:)\]'"*_~]+$/, "");
       frag.append(makeLink(url));
       last = m.index + url.length;
       re.lastIndex = last;
@@ -858,7 +851,7 @@ function inlineMd(text){
 
 function renderMarkdown(text){
   const frag = document.createDocumentFragment();
-  let stack = [];                                   // open lists: { indent, list, ordered }
+  let stack = [];
   const newList = (ordered, num) => {
     const l = el(ordered ? "ol" : "ul");
     if (ordered && num !== 1) l.start = num;
@@ -877,11 +870,11 @@ function renderMarkdown(text){
     const num = ordered ? parseInt(m[3], 10) : 1;
     while (stack.length && indent < stack[stack.length - 1].indent) stack.pop();
     let top = stack[stack.length - 1];
-    if (top && indent > top.indent) {               // deeper → nested list inside the last item
+    if (top && indent > top.indent) {
       const l = newList(ordered, num);
       (top.list.lastElementChild || top.list).appendChild(l);
       stack.push({ indent, list: l, ordered });
-    } else if (!top || top.ordered !== ordered) {   // new list (or switched between bullets / numbers)
+    } else if (!top || top.ordered !== ordered) {
       if (top) stack.pop();
       const parentTop = stack[stack.length - 1];
       const l = newList(ordered, num);
@@ -895,16 +888,13 @@ function renderMarkdown(text){
   return frag;
 }
 
-/* ---------- NEW: Markdown (typing helpers) ----------
-   Toolbar buttons + shortcuts: Ctrl/Cmd+B bold, Ctrl/Cmd+I italic, Ctrl/Cmd+Shift+X strikethrough,
-   Ctrl/Cmd+Shift+8 bullets, Ctrl/Cmd+Shift+7 numbers. Enter continues a list, Enter on an empty item ends it,
-   Tab / Shift+Tab indents a list item. Edits keep Ctrl/Cmd+Z undo working. */
+/* ---------- Markdown (typing helpers) ---------- */
 function replaceRange(ta, start, end, text, selStart, selEnd){
   ta.focus();
   ta.setSelectionRange(start, end);
   let ok = false;
   try { ok = document.execCommand(text ? "insertText" : "delete", false, text); } catch (e) {}
-  if (!ok) ta.setRangeText(text, start, end, "end");
+  if (!ok) { ta.setRangeText(text, start, end, "end"); ta.dispatchEvent(new Event("input")); }
   const a = selStart != null ? selStart : start + text.length;
   ta.setSelectionRange(a, selEnd != null ? selEnd : a);
 }
@@ -912,7 +902,7 @@ function replaceRange(ta, start, end, text, selStart, selEnd){
 function isWrapped(v, s, e, mark){
   const L = mark.length;
   if (v.slice(s - L, s) !== mark || v.slice(e, e + L) !== mark) return false;
-  if (mark === "*") {   // don't treat **bold** as *italic*
+  if (mark === "*") {
     const b2 = v.slice(s - 2, s) === "**" && v.slice(e, e + 2) === "**";
     const b3 = v.slice(s - 3, s) === "***" && v.slice(e, e + 3) === "***";
     if (b2 && !b3) return false;
@@ -926,7 +916,7 @@ function wrapSel(ta, mark){
   while (s < e && /\s/.test(v[s])) s++;
   while (e > s && /\s/.test(v[e - 1])) e--;
   const L = mark.length;
-  if (isWrapped(v, s, e, mark)) {                       // already formatted → remove
+  if (isWrapped(v, s, e, mark)) {
     replaceRange(ta, s - L, e + L, v.slice(s, e), s - L, e - L);
     return;
   }
@@ -976,11 +966,10 @@ function continueList(ta){
   const [ls, le] = lineBounds(v, s, s);
   const m = v.slice(ls, le).match(/^(\s*)([-*+]|(\d{1,9})([.)]))(\s+)(.*)$/);
   if (!m) return false;
-  if (s < ls + m[1].length + m[2].length + m[5].length) return false;   // caret is inside the marker
-  if (!m[6].trim()) { replaceRange(ta, ls, le, "", ls, ls); return true; } // empty item → end the list
+  if (s < ls + m[1].length + m[2].length + m[5].length) return false;
+  if (!m[6].trim()) { replaceRange(ta, ls, le, "", ls, ls); return true; }
   const marker = m[3] ? (parseInt(m[3], 10) + 1) + m[4] : m[2];
-  const ins = "\n" + m[1] + marker + " ";
-  replaceRange(ta, s, s, ins);
+  replaceRange(ta, s, s, "\n" + m[1] + marker + " ");
   return true;
 }
 
@@ -1022,13 +1011,13 @@ function mdToolbar(ta){
     ["B", "Bold (Ctrl/Cmd + B)", () => wrapSel(ta, "**"), "md-b"],
     ["I", "Italic (Ctrl/Cmd + I)", () => wrapSel(ta, "*"), "md-i"],
     ["S", "Strikethrough (Ctrl/Cmd + Shift + X)", () => wrapSel(ta, "~~"), "md-s"],
-    ["• List", "Bulleted list (Ctrl/Cmd + Shift + 8)", () => toggleList(ta, false)],
-    ["1. List", "Numbered list (Ctrl/Cmd + Shift + 7)", () => toggleList(ta, true)]
+    ["•", "Bulleted list (Ctrl/Cmd + Shift + 8)", () => toggleList(ta, false)],
+    ["1.", "Numbered list (Ctrl/Cmd + Shift + 7)", () => toggleList(ta, true)]
   ].forEach(([label, title, fn, cls]) => {
     const b = el("button", "md-btn" + (cls ? " " + cls : ""), label);
     b.type = "button";
     b.title = title;
-    b.addEventListener("mousedown", e => e.preventDefault());   // keeps the cursor in the text box
+    b.addEventListener("mousedown", e => e.preventDefault());
     b.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); ta.focus(); fn(); });
     bar.appendChild(b);
   });
@@ -1297,7 +1286,7 @@ function noteEl(n){
   card.style.gridColumn = "span " + span;
   if (n.h) card.style.minHeight = n.h + "px";
   const txt = el("div", "note-text");
-  if (n.text) txt.append(renderMarkdown(n.text));       // CHANGED: markdown instead of plain text
+  if (n.text) txt.append(renderMarkdown(n.text));
   const imgs = el("div", "thumbs");
   card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
   noteThumbs(imgs, n);
@@ -1327,19 +1316,63 @@ function noteEl(n){
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
   card.appendChild(tools);
-  card.append(...makeNoteResizers(card, n));            // CHANGED: edge + corner handles
+  card.append(...makeNoteResizers(card, n));
   txt.addEventListener("dblclick", () => editNote(card, n));
   return card;
 }
 
+/* CHANGED: edit-in-place – the note keeps its exact size and the text stays where it is.
+   1. The note's current height is locked before anything is swapped.
+   2. The editor has no padding/border, so the text doesn't move or shrink.
+   3. The formatting buttons replace the bottom tools row (which already takes up space),
+      so nothing is added above the text.
+   4. The editor fills all the spare space in the note and grows if you type more. */
 function editNote(card, n){
+  const txtEl = card.querySelector(".note-text");
+  if (!txtEl || card.classList.contains("is-editing")) return;
+
+  // 1. Measure BEFORE changing anything
+  const cardH = card.getBoundingClientRect().height;
+  const lineH = 14 * 1.45;
+  const textH = n.text ? txtEl.getBoundingClientRect().height : lineH * 3;
+
   card.draggable = false;
+  card.classList.add("is-editing");
+  card.style.minHeight = Math.round(Math.max(cardH, n.h || 0)) + "px";
+
+  // 2. Editor goes exactly where the text was
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
-  ta.placeholder = "Edit text, or paste images…";
-  card.querySelector(".note-text").replaceWith(mdToolbar(ta), ta);   // NEW: formatting toolbar
+  ta.placeholder = "Type here… (paste images too)";
+  ta.spellcheck = true;
+  txtEl.replaceWith(ta);
   attachMdKeys(ta);
-  ta.focus();
+
+  // 3. Formatting buttons + Done replace the tools row contents
+  const tools = card.querySelector(".note-tools");
+  const doneBtn = el("button", "md-done", "Done");
+  doneBtn.type = "button";
+  doneBtn.title = "Finish editing (Ctrl/Cmd + Enter)";
+  doneBtn.addEventListener("mousedown", e => e.preventDefault());
+  if (tools) {
+    [...tools.children].forEach(c => c.style.display = "none");
+    tools.prepend(mdToolbar(ta));
+    tools.append(doneBtn);
+  }
+
+  // 4. Size the editor: never smaller than the text it replaced, fills spare room, grows as you type
+  const fit = () => {
+    ta.style.flexGrow = "0";
+    ta.style.height = "auto";
+    const need = Math.max(Math.ceil(textH), ta.scrollHeight, lineH);
+    ta.style.height = need + "px";
+    ta.style.flexGrow = "";                          // flex:1 lets it fill any extra space in the note
+  };
+  card._refit = fit;
+  fit();
+  ta.addEventListener("input", fit);
+  ta.focus({ preventScroll: true });
+  ta.setSelectionRange(ta.value.length, ta.value.length);
   let done = false, uploading = 0;
 
   ta.addEventListener("paste", async e => {
@@ -1351,17 +1384,19 @@ function editNote(card, n){
     try { await addImagesToNote(n, files, card); }
     finally {
       uploading--;
-      if (!done) ta.focus();
+      if (!done) ta.focus({ preventScroll: true });
     }
   });
 
   const finish = () => {
     if (done || uploading) return;
     done = true;
+    card._refit = null;
     const v = ta.value.trim();
     if (v !== (n.text || "") && (v || (n.images || []).length)) { n.text = v; n.updated = Date.now(); changed(); }
     else render();
   };
+  doneBtn.addEventListener("click", e => { e.stopPropagation(); finish(); });
   ta.addEventListener("blur", finish);
   ta.addEventListener("keydown", e => {
     if (e.key === "Escape") { ta.value = n.text || ""; finish(); }
@@ -1463,7 +1498,7 @@ function render(){
 }
 
 /* ---------- Start up ---------- */
-$("#noteInput").before(mdToolbar($("#noteInput")));   // NEW: formatting toolbar above the new-note box
+$("#noteInput").before(mdToolbar($("#noteInput")));
 attachMdKeys($("#noteInput"));
 
 $("#authBtn").addEventListener("click", () => editMode ? logout() : login());
