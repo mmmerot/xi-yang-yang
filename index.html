@@ -43,9 +43,8 @@
   .md-btn.md-b{font-weight:700}
   .md-btn.md-i{font-style:italic}
   .md-btn.md-s{text-decoration:line-through}
-  /* CHANGED: inside a note, the toolbar sits in the tools row (not above the text) */
   .note-tools .md-bar{margin-right:auto;gap:2px}
-  .note-tools .md-btn{padding:1px 6px;min-width:24px;font-size:11px}
+  .note-tools .md-btn{padding:1px 5px;min-width:22px;font-size:11px}
   .md-done{padding:1px 8px;font-size:11px;background:var(--accent);border-color:var(--accent);color:#fff}
   .md-done:hover{background:#0080e0}
 
@@ -68,14 +67,14 @@
   .note-text li > ul,.note-text li > ol{margin:0}
   .note-text strong{font-weight:700}
   .note-text s{color:#888}
-  .note-meta{font-size:11px;color:var(--muted);margin-top:auto}
-  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
+  .note-meta{font-size:11px;color:var(--muted);margin-top:auto;flex-shrink:0}
+  .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px;flex-shrink:0}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
-  /* CHANGED: edit-in-place – the editor has no border/padding of its own, so the text stays exactly where it was.
-     The blue ring is drawn with box-shadow, which takes up no space. */
+  .note.is-editing .thumbs{flex-shrink:0}
+  /* CHANGED: editor fills exactly the space left in the locked note and scrolls inside if needed */
   .note-edit{display:block;width:100%;margin:0;padding:0;border:none;border-radius:3px;background:transparent;
-             font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;overflow:hidden;
-             outline:none;flex:1 0 auto;min-height:1.45em;
+             font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;outline:none;
+             flex:1 1 0;min-height:0;overflow-y:auto;
              box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px #b9dcff}
   .note-edit:focus{box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px var(--accent)}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
@@ -240,9 +239,7 @@
 </div>
 
 <script>
-/* =====================================================================
-   SETTINGS (optional): you can type your username + repo in the login box instead
-   ===================================================================== */
+/* SETTINGS (optional): you can type your username + repo in the login box instead */
 const CONFIG = {
   owner:  "",
   repo:   "",
@@ -590,7 +587,7 @@ function makeGrip(wrap, box, img, done){
   };
 
   g.addEventListener("dragstart", e => e.preventDefault());
-  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
+  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
   g.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -688,12 +685,25 @@ function fitNotes(){
 let fitTimer;
 window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitNotes, 100); });
 
+/* NEW: lock / unlock a note's exact height */
+function lockHeight(card, h){
+  const px = Math.round(h) + "px";
+  card.style.height = px;
+  card.style.minHeight = px;
+  card.style.maxHeight = px;
+}
+function unlockHeight(card){
+  card.style.height = "";
+  card.style.maxHeight = "";
+  card.style.minHeight = "";
+}
+
 function makeNoteResizers(card, n){
   return [["r", "Drag to change width"], ["b", "Drag to change height"], ["c", "Drag to resize"]].map(([dir, tip]) => {
     const h = el("div", "rz rz-" + dir);
     h.title = tip + " · double-click to reset";
     h.addEventListener("dragstart", e => e.preventDefault());
-    h.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
+    h.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
     h.addEventListener("click", e => e.stopPropagation());
     h.addEventListener("dblclick", e => {
       e.stopPropagation();
@@ -715,12 +725,19 @@ function startNoteResize(e, card, n, dir, handle){
   card.draggable = false;
   handle.setPointerCapture(e.pointerId);
 
+  const editing = card.classList.contains("is-editing");
   const { cols, gap, colW } = gridInfo(grid);
   const rect = card.getBoundingClientRect();
-  const prevMin = card.style.minHeight;
-  card.style.minHeight = "";
-  const natural = card.getBoundingClientRect().height;
-  card.style.minHeight = prevMin;
+
+  // Smallest height the note can have (its content height, or 100px while editing)
+  let natural;
+  if (editing) natural = 100;
+  else {
+    const saved = [card.style.height, card.style.minHeight, card.style.maxHeight];
+    unlockHeight(card);
+    natural = card.getBoundingClientRect().height;
+    [card.style.height, card.style.minHeight, card.style.maxHeight] = saved;
+  }
 
   const startX = e.clientX, startY = e.clientY;
   let span = Math.min(+card.dataset.span || 1, cols);
@@ -754,7 +771,7 @@ function startNoteResize(e, card, n, dir, handle){
     ghost.style.height = hgt + "px";
     const parts = [];
     if (dir !== "b") parts.push(span + (span > 1 ? " columns" : " column"));
-    if (dir !== "r") parts.push(hgt <= natural + 4 ? "auto height" : Math.round(hgt) + "px tall");
+    if (dir !== "r") parts.push(!editing && hgt <= natural + 4 ? "auto height" : Math.round(hgt) + "px tall");
     label.textContent = parts.join(" · ");
   };
   const move = ev => { last = ev; if (!raf) raf = requestAnimationFrame(update); };
@@ -770,19 +787,18 @@ function startNoteResize(e, card, n, dir, handle){
     card.classList.remove("resizing");
     handle.classList.remove("active");
     endDragCursor();
-    const editing = card.classList.contains("is-editing");
     card.draggable = !editing;
     if (!commit || !moved) return;
     n.span = span;
     delete n.size;
     if (dir !== "r") {
-      if (hgt <= natural + 4) delete n.h;
+      if (!editing && hgt <= natural + 4) delete n.h;
       else n.h = Math.round(hgt);
     }
     card.dataset.span = span;
     applySpan(card, span);
-    card.style.minHeight = n.h ? n.h + "px" : "";
-    if (editing && card._refit) card._refit();   // editor re-fills the resized note
+    if (editing) lockHeight(card, dir !== "r" ? hgt : rect.height);   // stays locked at the new size
+    else card.style.minHeight = n.h ? n.h + "px" : "";
     scheduleSave();
   };
   const onUp = () => finish(true);
@@ -861,8 +877,8 @@ function renderMarkdown(text){
     const m = line.match(/^(\s*)([-*+]|(\d{1,9})[.)])\s+(.*)$/);
     if (!m) {
       stack = [];
-      frag.appendChild(line.trim() ? (() => { const p = el("div", "md-p"); p.append(inlineMd(line)); return p; })()
-                                   : el("div", "md-gap"));
+      if (line.trim()) { const p = el("div", "md-p"); p.append(inlineMd(line)); frag.appendChild(p); }
+      else frag.appendChild(el("div", "md-gap"));
       return;
     }
     const indent = m[1].replace(/\t/g, "    ").length;
@@ -894,7 +910,7 @@ function replaceRange(ta, start, end, text, selStart, selEnd){
   ta.setSelectionRange(start, end);
   let ok = false;
   try { ok = document.execCommand(text ? "insertText" : "delete", false, text); } catch (e) {}
-  if (!ok) { ta.setRangeText(text, start, end, "end"); ta.dispatchEvent(new Event("input")); }
+  if (!ok) ta.setRangeText(text, start, end, "end");
   const a = selStart != null ? selStart : start + text.length;
   ta.setSelectionRange(a, selEnd != null ? selEnd : a);
 }
@@ -1309,10 +1325,12 @@ function noteEl(n){
   });
 
   const tools = el("div", "note-tools");
+  const pencil = iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n));
+  pencil.addEventListener("mousedown", e => e.preventDefault());   // no focus jump before the size is locked
   tools.append(
     move,
     iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
-    iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n)),
+    pencil,
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
   card.appendChild(tools);
@@ -1321,34 +1339,26 @@ function noteEl(n){
   return card;
 }
 
-/* CHANGED: edit-in-place – the note keeps its exact size and the text stays where it is.
-   1. The note's current height is locked before anything is swapped.
-   2. The editor has no padding/border, so the text doesn't move or shrink.
-   3. The formatting buttons replace the bottom tools row (which already takes up space),
-      so nothing is added above the text.
-   4. The editor fills all the spare space in the note and grows if you type more. */
+/* CHANGED: the note is locked to its EXACT current size the moment you press the pencil.
+   The editor fills the space where the text was and scrolls inside if you type more. */
 function editNote(card, n){
   const txtEl = card.querySelector(".note-text");
   if (!txtEl || card.classList.contains("is-editing")) return;
 
-  // 1. Measure BEFORE changing anything
+  // 1. Measure and lock the exact height BEFORE anything changes
   const cardH = card.getBoundingClientRect().height;
-  const lineH = 14 * 1.45;
-  const textH = n.text ? txtEl.getBoundingClientRect().height : lineH * 3;
-
+  lockHeight(card, cardH);
   card.draggable = false;
   card.classList.add("is-editing");
-  card.style.minHeight = Math.round(Math.max(cardH, n.h || 0)) + "px";
 
   // 2. Editor goes exactly where the text was
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
   ta.placeholder = "Type here… (paste images too)";
-  ta.spellcheck = true;
   txtEl.replaceWith(ta);
   attachMdKeys(ta);
 
-  // 3. Formatting buttons + Done replace the tools row contents
+  // 3. Formatting buttons + Done replace the bottom tools row (no extra space used)
   const tools = card.querySelector(".note-tools");
   const doneBtn = el("button", "md-done", "Done");
   doneBtn.type = "button";
@@ -1360,17 +1370,6 @@ function editNote(card, n){
     tools.append(doneBtn);
   }
 
-  // 4. Size the editor: never smaller than the text it replaced, fills spare room, grows as you type
-  const fit = () => {
-    ta.style.flexGrow = "0";
-    ta.style.height = "auto";
-    const need = Math.max(Math.ceil(textH), ta.scrollHeight, lineH);
-    ta.style.height = need + "px";
-    ta.style.flexGrow = "";                          // flex:1 lets it fill any extra space in the note
-  };
-  card._refit = fit;
-  fit();
-  ta.addEventListener("input", fit);
   ta.focus({ preventScroll: true });
   ta.setSelectionRange(ta.value.length, ta.value.length);
   let done = false, uploading = 0;
@@ -1391,7 +1390,7 @@ function editNote(card, n){
   const finish = () => {
     if (done || uploading) return;
     done = true;
-    card._refit = null;
+    unlockHeight(card);
     const v = ta.value.trim();
     if (v !== (n.text || "") && (v || (n.images || []).length)) { n.text = v; n.updated = Date.now(); changed(); }
     else render();
