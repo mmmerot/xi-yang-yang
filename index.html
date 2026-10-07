@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pixa dooba tiki mouse!!</title>
 <style>
-  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; }
+  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; --accent:#0090ff; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
        font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
@@ -21,7 +21,6 @@
   button:disabled{opacity:.5;cursor:wait}
   button.icon{border:none;background:none;padding:2px 6px;color:var(--muted)}
   button.icon:hover{color:var(--text);background:none}
-  /* CHANGED: green "Add note" button */
   #addNoteBtn{background:var(--green);border-color:var(--green);color:#fff;font-weight:600}
   #addNoteBtn:hover{background:#2b9a65;border-color:#2b9a65}
   main{max-width:1100px;margin:0 auto;padding:24px}
@@ -30,7 +29,7 @@
   body.editing .edit-only{display:flex !important}
   .composer{flex-direction:column;gap:8px;margin-bottom:32px}
   .composer textarea{width:100%;min-height:70px;resize:vertical;padding:12px;border:1px solid var(--line);
-                     border-radius:8px;background:#fff;outline:none}
+                     border-radius:8px;background:#fff;outline:none;font-size:14px;line-height:1.45}
   .composer textarea:focus,.new-folder input:focus{border-color:#bbb}
   .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   .hint{font-size:12px;color:var(--muted)}
@@ -38,32 +37,64 @@
   .zone{min-height:70px;border:1px dashed transparent;border-radius:10px;padding:4px;transition:.15s}
   .zone.over{border-color:#aaa;background:#f0f0f0}
 
-  /* Notes – CHANGED: size is set by dragging the note's corner (width snaps to columns, height is free) */
+  /* NEW: formatting toolbar (composer + note editor) */
+  .md-bar{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+  .md-btn{padding:2px 8px;font-size:12px;min-width:28px;line-height:18px;color:#555}
+  .md-btn.md-b{font-weight:700}
+  .md-btn.md-i{font-style:italic}
+  .md-btn.md-s{text-decoration:line-through}
+
+  /* Notes */
   .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));grid-auto-flow:dense;
         gap:12px;align-items:start}
   .note{position:relative;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:12px;
         display:flex;flex-direction:column;gap:8px;min-width:0}
-  .note.wide .note-text{font-size:15px}
+  /* CHANGED: removed ".note.wide .note-text{font-size:15px}" so text size stays the same when a note is widened */
   body.editing .note{cursor:grab}
   .note.dragging{opacity:.4}
-  .note.resizing{outline:2px solid #0090ff;cursor:nwse-resize}
-  .note-text{white-space:pre-wrap;word-wrap:break-word;line-height:1.45}
+  .note.resizing{border-color:var(--accent)}
+  .note-text{font-size:14px;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
   .note-text:empty{display:none}
   .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
+  /* NEW: markdown output */
+  .note-text .md-p,.note-text li{white-space:pre-wrap}
+  .note-text .md-gap{height:.8em}
+  .note-text ul,.note-text ol{margin:2px 0;padding-left:20px}
+  .note-text li{margin:1px 0}
+  .note-text li > ul,.note-text li > ol{margin:0}
+  .note-text strong{font-weight:700}
+  .note-text s{color:#888}
   .note-meta{font-size:11px;color:var(--muted);margin-top:auto}
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
-  .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none}
+  /* CHANGED: editor uses the same font size as the note text */
+  .note-edit{width:100%;min-height:80px;resize:vertical;border:1px solid #ccc;border-radius:6px;padding:8px;outline:none;
+             font-size:14px;line-height:1.45}
   .empty{color:var(--muted);font-size:12px;padding:14px 4px}
-  /* Note resize handle (bottom-right corner of the note) */
-  .note-grip{position:absolute;right:1px;bottom:1px;width:14px;height:14px;cursor:nwse-resize;touch-action:none;
-             background:linear-gradient(135deg,transparent 50%,#bbb 50%,#bbb 58%,transparent 58%,
-             transparent 72%,#bbb 72%,#bbb 80%,transparent 80%);border-bottom-right-radius:7px}
-  .note:hover .note-grip,.note.resizing .note-grip{background:linear-gradient(135deg,transparent 50%,#555 50%,#555 58%,
-             transparent 58%,transparent 72%,#555 72%,#555 80%,transparent 80%)}
-  .note-tag{position:absolute;right:20px;bottom:4px;background:rgba(0,0,0,.7);color:#fff;font-size:11px;
-            padding:1px 7px;border-radius:10px;display:none;pointer-events:none}
-  .note.resizing .note-tag{display:block}
+
+  /* NEW: note resize handles – right edge, bottom edge and corner (replace the old striped corner) */
+  .rz{position:absolute;z-index:2;touch-action:none}
+  .rz-r{top:12px;bottom:16px;right:-6px;width:12px;cursor:ew-resize}
+  .rz-b{left:12px;right:16px;bottom:-6px;height:12px;cursor:ns-resize}
+  .rz-c{right:-6px;bottom:-6px;width:18px;height:18px;cursor:nwse-resize}
+  .rz-r::after,.rz-b::after{content:"";position:absolute;border-radius:3px;background:#cfcfcf;opacity:0;
+                            transition:opacity .15s,background .15s}
+  .rz-r::after{left:4px;top:50%;width:4px;height:30px;margin-top:-15px}
+  .rz-b::after{top:4px;left:50%;height:4px;width:30px;margin-left:-15px}
+  .rz-c::after{content:"";position:absolute;right:6px;bottom:6px;width:9px;height:9px;opacity:0;
+               border-right:2px solid #bbb;border-bottom:2px solid #bbb;border-bottom-right-radius:4px;
+               transition:opacity .15s,border-color .15s}
+  .note:hover .rz::after,.note.resizing .rz::after{opacity:1}
+  .rz-r:hover::after,.rz-b:hover::after,.rz-r.active::after,.rz-b.active::after{background:var(--accent)}
+  .rz-c:hover::after,.rz-c.active::after{border-color:var(--accent)}
+  @media (hover:none){ .rz::after{opacity:.8} }
+  /* Outline that follows your pointer while resizing a note */
+  .rz-ghost{position:fixed;z-index:40;pointer-events:none;border:2px dashed var(--accent);border-radius:8px;
+            background:rgba(0,144,255,.06);transition:width .12s ease}
+  .rz-ghost span{position:absolute;right:8px;bottom:8px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;
+                 padding:2px 8px;border-radius:10px;white-space:nowrap}
+  body.rz-active{-webkit-user-select:none;user-select:none}
+  body.rz-active *{cursor:inherit !important}
 
   /* Images – they grow and shrink with the note */
   .thumbs{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
@@ -74,18 +105,20 @@
   .thumb.custom{width:var(--w) !important}
   .thumb img{display:block;width:100%;height:auto;border-radius:6px;
              border:1px solid var(--line);cursor:zoom-in;background:#f3f3f3}
+  .thumb.editable:hover img{border-color:var(--accent)}
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  /* Image resize handle */
-  .grip{position:absolute;right:3px;bottom:3px;width:20px;height:20px;border-radius:5px;cursor:nwse-resize;
-        background:rgba(0,0,0,.55) linear-gradient(135deg,transparent 45%,#fff 45%,#fff 55%,transparent 55%,
-        transparent 70%,#fff 70%,#fff 80%,transparent 80%);opacity:.35;transition:opacity .15s;
-        touch-action:none;outline:none}
+  /* CHANGED: image resize handle is now a small round corner dot (like Word / PowerPoint) */
+  .grip{position:absolute;right:-5px;bottom:-5px;width:14px;height:14px;border-radius:50%;z-index:2;
+        background:#fff;border:2px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.25);
+        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,transform .15s}
+  .grip::before{content:"";position:absolute;inset:-7px}   /* bigger, invisible grab area */
   .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
-  .grip:focus{box-shadow:0 0 0 2px #0090ff}
-  @media (hover:none){ .grip{opacity:.9} }
-  .thumb.resizing img{outline:2px solid #0090ff}
+  .grip:hover,.thumb.resizing .grip{transform:scale(1.2)}
+  .grip:focus{box-shadow:0 0 0 3px rgba(0,144,255,.35)}
+  @media (hover:none){ .grip{opacity:1} }
+  .thumb.resizing img{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
   .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
             background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
   .thumb.resizing .size-tag{display:block}
@@ -112,9 +145,8 @@
           background:linear-gradient(0deg,var(--tint),var(--tint)),#fff}
   .folder.over{outline:2px dashed var(--c);outline-offset:2px}
   .folder.folder-dragging{opacity:.4}
-  /* CHANGED: blue line shows where a dragged folder will land */
-  .folder.drop-before{box-shadow:0 -4px 0 0 #0090ff}
-  .folder.drop-after{box-shadow:0 4px 0 0 #0090ff}
+  .folder.drop-before{box-shadow:0 -4px 0 0 var(--accent)}
+  .folder.drop-after{box-shadow:0 4px 0 0 var(--accent)}
   .folder-head{display:flex;align-items:center;gap:8px;padding:10px 12px;cursor:pointer;user-select:none}
   .handle{color:#bbb;cursor:grab;font-size:14px;letter-spacing:-2px;padding:0 2px}
   .handle:hover{color:#555}
@@ -128,7 +160,7 @@
   .palette{display:none;margin-right:6px}
   .palette.open{display:flex}
 
-  /* Login panel (on the page itself, so the browser can't block it) */
+  /* Login panel */
   .login-panel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
                background:rgba(0,0,0,.35)}
   .login-panel[hidden]{display:none}
@@ -161,7 +193,7 @@
       <select id="noteTarget"></select>
       <button id="pickImagesBtn" title="Choose one or more images from your computer">Add images</button>
       <button id="addNoteBtn">Add note</button>
-      <span class="hint">Tip: drag the bottom-right corner of a note to resize it</span>
+      <span class="hint">**bold** · *italic* · ~~strike~~ · "- " or "1. " for lists · drag a note's edge or corner to resize</span>
     </div>
   </div>
 
@@ -207,19 +239,17 @@
    SETTINGS (optional): you can type your username + repo in the login box instead
    ===================================================================== */
 const CONFIG = {
-  owner:  "",            // e.g. "mmmerot"
-  repo:   "",            // e.g. "xi-yang-yang"
+  owner:  "",
+  repo:   "",
   branch: "main",
-  path:   "data.json",   // file where your notes are stored (created automatically)
-  imageFolder: "images", // folder where pasted images are stored (created automatically)
-  maxImageSide: 1600     // large images are shrunk to this many pixels to keep saving fast
+  path:   "data.json",
+  imageFolder: "images",
+  maxImageSide: 1600
 };
 
-/* Use the username/repo you typed in the login box last time (if left blank above) */
 if (!CONFIG.owner) CONFIG.owner = localStorage.getItem("bs_owner") || "";
 if (!CONFIG.repo)  CONFIG.repo  = localStorage.getItem("bs_repo")  || "";
 
-/* Auto-detect owner/repo when hosted on GitHub Pages (used only if still blank) */
 (function autodetect(){
   const host = location.hostname;
   if (!host.endsWith(".github.io")) return;
@@ -234,7 +264,7 @@ const COLORS = {
   red:"#e5484d", orange:"#f76b15", yellow:"#f5c518", green:"#30a46c",
   blue:"#0090ff", indigo:"#3e63dd", violet:"#8e4ec6"
 };
-const OLD_SIZES = { s: 1, m: 2, l: 3 };      // notes saved with the old S/M/L buttons keep their width
+const OLD_SIZES = { s: 1, m: 2, l: 3 };
 const FOLDER_MIME = "application/x-bs-folder";
 
 let state = { folders: [], notes: [] };
@@ -243,10 +273,10 @@ let token = localStorage.getItem("bs_token") || "";
 let editMode = false;
 let saveTimer = null, saving = false, pending = false, dirty = false, busy = 0;
 let newFolderColor = "blue";
-let pendingImages = [];        // images waiting in the new-note box
-const localImg = {};           // images uploaded this session (shown instantly)
+let pendingImages = [];
+const localImg = {};
 const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
-let lb = { list: [], i: 0 };   // lightbox gallery
+let lb = { list: [], i: 0 };
 
 const $ = s => document.querySelector(s);
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -254,7 +284,6 @@ const setStatus = t => $("#status").textContent = t;
 const fmtDate = ts => new Date(ts).toLocaleString("en-SG",
   { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
-// Show any unexpected error at the top of the page instead of failing silently
 window.addEventListener("error", e => setStatus("Error: " + e.message));
 
 function el(tag, cls, text){
@@ -291,7 +320,6 @@ const rawUrl = p =>
 const ghHeaders = () =>
   ({ "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" });
 
-// All GitHub writes go one at a time, so they never clash with each other
 let ghChain = Promise.resolve();
 function ghQueue(fn){
   const p = ghChain.then(fn, fn);
@@ -353,7 +381,6 @@ async function flushSave(){
   }
 }
 
-// Schedules a save without redrawing the page (used while you are still editing a note)
 function scheduleSave(){
   dirty = true;
   setStatus("Unsaved changes…");
@@ -387,7 +414,6 @@ function loadImage(src){
   });
 }
 
-// Turns an image into {dataUrl, ext}; big images are shrunk to save space
 async function prepareImage(file){
   const dataUrl = await readAsDataURL(file);
   const img = await loadImage(dataUrl);
@@ -407,7 +433,6 @@ async function prepareImage(file){
   return { dataUrl, ext };
 }
 
-// Gets every image from a paste (several images at once are supported)
 function imagesFromClipboard(e){
   const cd = e.clipboardData;
   if (!cd) return [];
@@ -450,7 +475,6 @@ function deleteImage(path){
   });
 }
 
-// Uploads images one by one and returns their saved paths
 async function uploadAll(prepared){
   busy++;
   const paths = [];
@@ -472,7 +496,7 @@ async function prepareAll(files){
   return out;
 }
 
-/* ---------- Lightbox (click an image; use ‹ › or arrow keys for other images in the same note) ---------- */
+/* ---------- Lightbox ---------- */
 function openLightbox(list, i){
   lb = { list, i };
   showLightbox();
@@ -491,9 +515,16 @@ function stepLightbox(d){
 }
 const closeLightbox = () => $("#lightbox").classList.remove("open");
 
-/* thumbs container for a list of image sources.
-   opts.widths  = saved custom widths (percent of the note) per image
-   opts.onResize(i, pct) = called when you finish dragging an image corner (pct null = reset) */
+/* Shared helpers for any resize drag (stops text selection and keeps one cursor while dragging) */
+function beginDragCursor(cursor){
+  document.body.classList.add("rz-active");
+  document.body.style.cursor = cursor;
+}
+function endDragCursor(){
+  document.body.classList.remove("rz-active");
+  document.body.style.cursor = "";
+}
+
 function fillThumbs(box, sources, onRemove, fallbacks, opts){
   opts = opts || {};
   box.innerHTML = "";
@@ -523,6 +554,7 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
       wrap.appendChild(x);
     }
     if (opts.onResize) {
+      wrap.classList.add("editable");
       wrap.appendChild(el("div", "size-tag"));
       wrap.appendChild(makeGrip(wrap, box, img, pct => opts.onResize(i, pct)));
     }
@@ -530,20 +562,21 @@ function fillThumbs(box, sources, onRemove, fallbacks, opts){
   });
 }
 
-/* Image corner handle
-   - drag right/down to enlarge, left/up to shrink; the image keeps its shape
-   - double-click / double-tap to reset; keyboard: arrow keys ±5%, Delete = reset */
+/* CHANGED: image corner handle
+   - the corner follows your pointer smoothly (pointer is projected onto the image's diagonal, so it never jumps)
+   - updates once per frame for a smooth drag
+   - double-click to reset; keyboard: arrow keys ±5%, Delete = reset */
 function makeGrip(wrap, box, img, done){
   const g = el("div", "grip");
   g.title = "Drag to resize image · double-click to reset";
   g.tabIndex = 0;
   const tag = wrap.querySelector(".size-tag");
   const MIN = 10, MAX = 100;
-  const clamp = v => Math.round(Math.min(MAX, Math.max(MIN, v)));
+  const clamp = v => Math.round(Math.min(MAX, Math.max(MIN, v)) * 10) / 10;
   const apply = pct => {
     wrap.classList.add("custom");
     wrap.style.setProperty("--w", pct + "%");
-    if (tag) tag.textContent = pct + "%";
+    if (tag) tag.textContent = Math.round(pct) + "%";
   };
   const currentPct = () => {
     const bw = box.getBoundingClientRect().width || 1;
@@ -558,6 +591,7 @@ function makeGrip(wrap, box, img, done){
   g.addEventListener("dragstart", e => e.preventDefault());
   g.addEventListener("mousedown", e => e.stopPropagation());
   g.addEventListener("pointerdown", e => {
+    if (e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
     const card = box.closest(".note");
@@ -566,33 +600,35 @@ function makeGrip(wrap, box, img, done){
     g.setPointerCapture(e.pointerId);
 
     const startX = e.clientX, startY = e.clientY;
-    const rect = wrap.getBoundingClientRect();
-    const startW = rect.width;
+    const W = wrap.getBoundingClientRect().width || 1;
+    const H = img.getBoundingClientRect().height || W;
     const boxW = box.getBoundingClientRect().width || 1;
-    const ratio = (img.naturalWidth && img.naturalHeight)
-      ? img.naturalHeight / img.naturalWidth
-      : (rect.height / (rect.width || 1)) || 1;
     const hadCustom = wrap.classList.contains("custom");
     const oldW = wrap.style.getPropertyValue("--w");
     wrap.classList.add("resizing");
-    let pct = null;
+    beginDragCursor("nwse-resize");
+    let pct = null, raf = 0, last = e;
     const lastTap = g._lastTap || 0;
 
-    const move = ev => {
-      const dx = ev.clientX - startX;
-      const dyAsW = (ev.clientY - startY) / ratio;
-      const delta = Math.abs(dx) >= Math.abs(dyAsW) ? dx : dyAsW;
-      if (Math.abs(delta) < 2 && pct == null) return;
-      let p = clamp((startW + delta) / boxW * 100);
+    const update = () => {
+      raf = 0;
+      const dx = last.clientX - startX, dy = last.clientY - startY;
+      if (pct == null && Math.hypot(dx, dy) < 3) return;
+      // where the corner should be = pointer projected onto the image diagonal
+      const t = ((W + dx) * W + (H + dy) * H) / (W * W + H * H);
+      let p = clamp(W * t / boxW * 100);
       if (p >= 97) p = 100;
       pct = p;
       apply(p);
     };
+    const move = ev => { last = ev; if (!raf) raf = requestAnimationFrame(update); };
     const up = () => {
+      if (raf) { cancelAnimationFrame(raf); update(); }
       g.removeEventListener("pointermove", move);
       g.removeEventListener("pointerup", up);
       g.removeEventListener("pointercancel", up);
       wrap.classList.remove("resizing");
+      endDragCursor();
       if (card) card.draggable = wasDraggable;
       if (pct == null) {
         if (!hadCustom) { wrap.classList.remove("custom"); wrap.style.removeProperty("--w"); }
@@ -627,8 +663,7 @@ function makeGrip(wrap, box, img, done){
   return g;
 }
 
-/* ---------- NEW: note sizing (drag the note's bottom-right corner) ---------- */
-// How many grid columns a note spans (old S/M/L notes are converted automatically)
+/* ---------- Note sizing ---------- */
 const noteSpan = n => Math.max(1, n.span || OLD_SIZES[n.size] || 1);
 
 function gridInfo(grid){
@@ -639,7 +674,6 @@ function gridInfo(grid){
   return { cols, gap, colW };
 }
 
-// Applies a width (in columns) to a note, never wider than the screen allows
 function applySpan(card, span){
   const grid = card.parentElement;
   const cols = grid && grid.classList.contains("grid") ? gridInfo(grid).cols : span;
@@ -648,69 +682,119 @@ function applySpan(card, span){
   card.classList.toggle("wide", s >= 2);
 }
 
-// Re-checks every note's width (after drawing the page and when the window is resized)
 function fitNotes(){
   document.querySelectorAll(".grid > .note").forEach(card => applySpan(card, +card.dataset.span || 1));
 }
 let fitTimer;
 window.addEventListener("resize", () => { clearTimeout(fitTimer); fitTimer = setTimeout(fitNotes, 100); });
 
-function makeNoteGrip(card, n){
-  const g = el("div", "note-grip");
-  g.title = "Drag to resize note · double-click to reset";
-  const tag = el("div", "note-tag");
-  g.addEventListener("dragstart", e => e.preventDefault());
-  g.addEventListener("mousedown", e => e.stopPropagation());
-  g.addEventListener("click", e => e.stopPropagation());
-  g.addEventListener("pointerdown", e => {
-    e.preventDefault();
-    e.stopPropagation();
-    const grid = card.parentElement;
-    if (!grid) return;
-    card.draggable = false;
-    g.setPointerCapture(e.pointerId);
-    const { cols, gap, colW } = gridInfo(grid);
-    const rect = card.getBoundingClientRect();
-    const startX = e.clientX, startY = e.clientY;
-    let span = Math.min(noteSpan(n), cols), h = null, moved = false;
-    card.classList.add("resizing");
+/* NEW: note resize handles
+   - right edge = width, bottom edge = height, corner = both
+   - while dragging, a dashed outline follows your pointer; other notes don't jump around until you let go
+   - the note can't be made shorter than its content (dragging back to the content height = auto height)
+   - Esc cancels, double-click any handle resets the size */
+function makeNoteResizers(card, n){
+  return [["r", "Drag to change width"], ["b", "Drag to change height"], ["c", "Drag to resize"]].map(([dir, tip]) => {
+    const h = el("div", "rz rz-" + dir);
+    h.title = tip + " · double-click to reset";
+    h.addEventListener("dragstart", e => e.preventDefault());
+    h.addEventListener("mousedown", e => e.stopPropagation());
+    h.addEventListener("click", e => e.stopPropagation());
+    h.addEventListener("dblclick", e => {
+      e.stopPropagation();
+      delete n.span; delete n.h; delete n.size;
+      changed();
+    });
+    h.addEventListener("pointerdown", e => startNoteResize(e, card, n, dir, h));
+    return h;
+  });
+}
 
-    const move = ev => {
-      const dx = ev.clientX - startX, dy = ev.clientY - startY;
-      if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
-      moved = true;
+function startNoteResize(e, card, n, dir, handle){
+  if (e.button !== 0) return;
+  const grid = card.parentElement;
+  if (!grid || !grid.classList.contains("grid")) return;
+  e.preventDefault();
+  e.stopPropagation();
+  card.draggable = false;
+  handle.setPointerCapture(e.pointerId);
+
+  const { cols, gap, colW } = gridInfo(grid);
+  const rect = card.getBoundingClientRect();
+  // height the note needs for its content (it can't be made smaller than this)
+  const prevMin = card.style.minHeight;
+  card.style.minHeight = "";
+  const natural = card.getBoundingClientRect().height;
+  card.style.minHeight = prevMin;
+
+  const startX = e.clientX, startY = e.clientY;
+  let span = Math.min(+card.dataset.span || 1, cols);
+  let hgt = rect.height, moved = false, raf = 0, last = e, ended = false;
+
+  const ghost = el("div", "rz-ghost");
+  const label = el("span");
+  ghost.appendChild(label);
+  ghost.hidden = true;
+  document.body.appendChild(ghost);
+  card.classList.add("resizing");
+  handle.classList.add("active");
+  beginDragCursor(getComputedStyle(handle).cursor);
+
+  const update = () => {
+    raf = 0;
+    const dx = last.clientX - startX, dy = last.clientY - startY;
+    if (!moved && Math.abs(dx) < 3 && Math.abs(dy) < 3) return;
+    moved = true;
+    ghost.hidden = false;
+    const r = card.getBoundingClientRect();          // follows the page if you scroll while dragging
+    let w = r.width;
+    if (dir !== "b") {
       span = Math.min(cols, Math.max(1, Math.round((rect.width + dx + gap) / (colW + gap))));
-      card.style.gridColumn = "span " + span;
-      card.classList.toggle("wide", span >= 2);
-      if (Math.abs(dy) >= 3) {
-        h = Math.max(100, Math.round(rect.height + dy));
-        card.style.minHeight = h + "px";
-      }
-      tag.textContent = span + (span > 1 ? " columns" : " column") + (h ? " · " + h + "px tall" : "");
-    };
-    const up = () => {
-      g.removeEventListener("pointermove", move);
-      g.removeEventListener("pointerup", up);
-      g.removeEventListener("pointercancel", up);
-      card.classList.remove("resizing");
-      card.draggable = true;
-      if (!moved) return;
-      n.span = span;
-      delete n.size;
-      if (h) n.h = h;
-      card.dataset.span = span;
-      scheduleSave();
-    };
-    g.addEventListener("pointermove", move);
-    g.addEventListener("pointerup", up);
-    g.addEventListener("pointercancel", up);
-  });
-  g.addEventListener("dblclick", e => {
-    e.stopPropagation();
-    delete n.span; delete n.h; delete n.size;
-    changed();
-  });
-  return [g, tag];
+      w = span * colW + (span - 1) * gap;
+    }
+    if (dir !== "r") hgt = Math.max(natural, rect.height + dy);
+    ghost.style.left = r.left + "px";
+    ghost.style.top = r.top + "px";
+    ghost.style.width = w + "px";
+    ghost.style.height = hgt + "px";
+    const parts = [];
+    if (dir !== "b") parts.push(span + (span > 1 ? " columns" : " column"));
+    if (dir !== "r") parts.push(hgt <= natural + 4 ? "auto height" : Math.round(hgt) + "px tall");
+    label.textContent = parts.join(" · ");
+  };
+  const move = ev => { last = ev; if (!raf) raf = requestAnimationFrame(update); };
+  const finish = commit => {
+    if (ended) return;
+    ended = true;
+    if (raf) { cancelAnimationFrame(raf); if (commit) update(); }
+    handle.removeEventListener("pointermove", move);
+    handle.removeEventListener("pointerup", onUp);
+    handle.removeEventListener("pointercancel", onCancel);
+    window.removeEventListener("keydown", onKey, true);
+    ghost.remove();
+    card.classList.remove("resizing");
+    handle.classList.remove("active");
+    endDragCursor();
+    card.draggable = true;
+    if (!commit || !moved) return;
+    n.span = span;
+    delete n.size;
+    if (dir !== "r") {
+      if (hgt <= natural + 4) delete n.h;
+      else n.h = Math.round(hgt);
+    }
+    card.dataset.span = span;
+    applySpan(card, span);
+    card.style.minHeight = n.h ? n.h + "px" : "";
+    scheduleSave();
+  };
+  const onUp = () => finish(true);
+  const onCancel = () => finish(false);
+  const onKey = ev => { if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); finish(false); } };
+  handle.addEventListener("pointermove", move);
+  handle.addEventListener("pointerup", onUp);
+  handle.addEventListener("pointercancel", onCancel);
+  window.addEventListener("keydown", onKey, true);
 }
 
 function renderPending(){
@@ -724,8 +808,234 @@ async function addToComposer(files){
   setStatus(pendingImages.length + " image(s) ready – click Add note");
 }
 
+/* ---------- NEW: Markdown (display) ----------
+   **bold** / __bold__, *italic* / _italic_, ~~strikethrough~~,
+   "- ", "* ", "+ " bullet lists, "1. " / "1) " numbered lists (indent with spaces/Tab to nest),
+   \* to show a literal symbol. Web links are still clickable. Built with safe DOM nodes (no innerHTML). */
+const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])\s+/;
+
+function makeLink(url){
+  const a = el("a", null, url);
+  a.href = url.toLowerCase().startsWith("www.") ? "https://" + url : url;
+  a.target = "_blank";
+  a.rel = "noopener noreferrer";
+  a.draggable = false;
+  a.addEventListener("click", e => e.stopPropagation());
+  a.addEventListener("dblclick", e => e.stopPropagation());
+  return a;
+}
+
+function inlineMd(text){
+  const frag = document.createDocumentFragment();
+  const re = /\\([\\*_~`\-+.])|(\*\*|__)(?=\S)([\s\S]*?\S)\2|~~(?=\S)([\s\S]*?\S)~~|\*(?=[^\s*])([\s\S]*?[^\s*])\*|_(?=[^\s_])([\s\S]*?[^\s_])_|(https?:\/\/[^\s<]+|www\.[^\s<]+)/gi;
+  const isWord = c => !!c && /[A-Za-z0-9]/.test(c);
+  let last = 0, m;
+  while ((m = re.exec(text))) {
+    // underscores inside words (e.g. file_name_here) are left alone
+    const usesUnderscore = (m[2] === "__") || m[6] != null;
+    if (usesUnderscore && (isWord(text[m.index - 1]) || isWord(text[m.index + m[0].length]))) {
+      re.lastIndex = m.index + 1;
+      continue;
+    }
+    frag.append(text.slice(last, m.index));
+    if (m[1] != null) frag.append(m[1]);
+    else if (m[3] != null) { const s = el("strong"); s.append(inlineMd(m[3])); frag.append(s); }
+    else if (m[4] != null) { const s = el("s");      s.append(inlineMd(m[4])); frag.append(s); }
+    else if (m[5] != null) { const s = el("em");     s.append(inlineMd(m[5])); frag.append(s); }
+    else if (m[6] != null) { const s = el("em");     s.append(inlineMd(m[6])); frag.append(s); }
+    else {
+      const url = m[7].replace(/[.,!?;:)\]'"*_~]+$/, "");   // ignore punctuation / markers at the end
+      frag.append(makeLink(url));
+      last = m.index + url.length;
+      re.lastIndex = last;
+      continue;
+    }
+    last = re.lastIndex;
+  }
+  frag.append(text.slice(last));
+  return frag;
+}
+
+function renderMarkdown(text){
+  const frag = document.createDocumentFragment();
+  let stack = [];                                   // open lists: { indent, list, ordered }
+  const newList = (ordered, num) => {
+    const l = el(ordered ? "ol" : "ul");
+    if (ordered && num !== 1) l.start = num;
+    return l;
+  };
+  text.split("\n").forEach(line => {
+    const m = line.match(/^(\s*)([-*+]|(\d{1,9})[.)])\s+(.*)$/);
+    if (!m) {
+      stack = [];
+      frag.appendChild(line.trim() ? (() => { const p = el("div", "md-p"); p.append(inlineMd(line)); return p; })()
+                                   : el("div", "md-gap"));
+      return;
+    }
+    const indent = m[1].replace(/\t/g, "    ").length;
+    const ordered = m[3] != null;
+    const num = ordered ? parseInt(m[3], 10) : 1;
+    while (stack.length && indent < stack[stack.length - 1].indent) stack.pop();
+    let top = stack[stack.length - 1];
+    if (top && indent > top.indent) {               // deeper → nested list inside the last item
+      const l = newList(ordered, num);
+      (top.list.lastElementChild || top.list).appendChild(l);
+      stack.push({ indent, list: l, ordered });
+    } else if (!top || top.ordered !== ordered) {   // new list (or switched between bullets / numbers)
+      if (top) stack.pop();
+      const parentTop = stack[stack.length - 1];
+      const l = newList(ordered, num);
+      (parentTop ? (parentTop.list.lastElementChild || parentTop.list) : frag).appendChild(l);
+      stack.push({ indent: top ? top.indent : indent, list: l, ordered });
+    }
+    const li = el("li");
+    li.append(inlineMd(m[4]));
+    stack[stack.length - 1].list.appendChild(li);
+  });
+  return frag;
+}
+
+/* ---------- NEW: Markdown (typing helpers) ----------
+   Toolbar buttons + shortcuts: Ctrl/Cmd+B bold, Ctrl/Cmd+I italic, Ctrl/Cmd+Shift+X strikethrough,
+   Ctrl/Cmd+Shift+8 bullets, Ctrl/Cmd+Shift+7 numbers. Enter continues a list, Enter on an empty item ends it,
+   Tab / Shift+Tab indents a list item. Edits keep Ctrl/Cmd+Z undo working. */
+function replaceRange(ta, start, end, text, selStart, selEnd){
+  ta.focus();
+  ta.setSelectionRange(start, end);
+  let ok = false;
+  try { ok = document.execCommand(text ? "insertText" : "delete", false, text); } catch (e) {}
+  if (!ok) ta.setRangeText(text, start, end, "end");
+  const a = selStart != null ? selStart : start + text.length;
+  ta.setSelectionRange(a, selEnd != null ? selEnd : a);
+}
+
+function isWrapped(v, s, e, mark){
+  const L = mark.length;
+  if (v.slice(s - L, s) !== mark || v.slice(e, e + L) !== mark) return false;
+  if (mark === "*") {   // don't treat **bold** as *italic*
+    const b2 = v.slice(s - 2, s) === "**" && v.slice(e, e + 2) === "**";
+    const b3 = v.slice(s - 3, s) === "***" && v.slice(e, e + 3) === "***";
+    if (b2 && !b3) return false;
+  }
+  return true;
+}
+
+function wrapSel(ta, mark){
+  const v = ta.value;
+  let s = ta.selectionStart, e = ta.selectionEnd;
+  while (s < e && /\s/.test(v[s])) s++;
+  while (e > s && /\s/.test(v[e - 1])) e--;
+  const L = mark.length;
+  if (isWrapped(v, s, e, mark)) {                       // already formatted → remove
+    replaceRange(ta, s - L, e + L, v.slice(s, e), s - L, e - L);
+    return;
+  }
+  const sel = v.slice(s, e);
+  const selIsBold = mark === "*" && sel.startsWith("**") && !sel.startsWith("***");
+  if (sel.length >= 2 * L && sel.startsWith(mark) && sel.endsWith(mark) && !selIsBold) {
+    const inner = sel.slice(L, -L);
+    replaceRange(ta, s, e, inner, s, s + inner.length);
+    return;
+  }
+  replaceRange(ta, s, e, mark + sel + mark, s + L, s + L + sel.length);
+}
+
+function lineBounds(v, s, e){
+  const ls = v.lastIndexOf("\n", s - 1) + 1;
+  let le = v.indexOf("\n", e);
+  if (le < 0) le = v.length;
+  return [ls, le];
+}
+
+function toggleList(ta, ordered){
+  const v = ta.value;
+  const [ls, le] = lineBounds(v, ta.selectionStart, ta.selectionEnd);
+  const lines = v.slice(ls, le).split("\n");
+  const filled = lines.filter(l => l.trim());
+  const allSame = filled.length && filled.every(l => {
+    const m = l.match(LIST_RE);
+    return m && /\d/.test(m[2]) === ordered;
+  });
+  let k = 0;
+  const out = lines.map(l => {
+    if (!l.trim()) return lines.length > 1 ? l : (ordered ? "1. " : "- ");
+    const stripped = l.replace(LIST_RE, "$1");
+    if (allSame) return stripped;
+    const ind = stripped.match(/^\s*/)[0];
+    k++;
+    return ind + (ordered ? k + ". " : "- ") + stripped.slice(ind.length);
+  }).join("\n");
+  if (lines.length === 1) replaceRange(ta, ls, le, out);
+  else replaceRange(ta, ls, le, out, ls, ls + out.length);
+}
+
+function continueList(ta){
+  const s = ta.selectionStart;
+  if (s !== ta.selectionEnd) return false;
+  const v = ta.value;
+  const [ls, le] = lineBounds(v, s, s);
+  const m = v.slice(ls, le).match(/^(\s*)([-*+]|(\d{1,9})([.)]))(\s+)(.*)$/);
+  if (!m) return false;
+  if (s < ls + m[1].length + m[2].length + m[5].length) return false;   // caret is inside the marker
+  if (!m[6].trim()) { replaceRange(ta, ls, le, "", ls, ls); return true; } // empty item → end the list
+  const marker = m[3] ? (parseInt(m[3], 10) + 1) + m[4] : m[2];
+  const ins = "\n" + m[1] + marker + " ";
+  replaceRange(ta, s, s, ins);
+  return true;
+}
+
+function indentList(ta, outdent){
+  const v = ta.value, s = ta.selectionStart, e = ta.selectionEnd;
+  const [ls, le] = lineBounds(v, s, e);
+  const lines = v.slice(ls, le).split("\n");
+  if (!lines.some(l => LIST_RE.test(l))) return false;
+  const out = lines.map(l => !LIST_RE.test(l) ? l : outdent ? l.replace(/^( {1,2}|\t)/, "") : "  " + l).join("\n");
+  if (lines.length === 1 && s === e) {
+    const caret = Math.max(ls, s + out.length - (le - ls));
+    replaceRange(ta, ls, le, out, caret);
+  } else replaceRange(ta, ls, le, out, ls, ls + out.length);
+  return true;
+}
+
+function attachMdKeys(ta){
+  ta.addEventListener("keydown", e => {
+    if ((e.ctrlKey || e.metaKey) && !e.altKey) {
+      const k = e.key.toLowerCase();
+      let act = null;
+      if (!e.shiftKey && k === "b") act = () => wrapSel(ta, "**");
+      else if (!e.shiftKey && k === "i") act = () => wrapSel(ta, "*");
+      else if (e.shiftKey && k === "x") act = () => wrapSel(ta, "~~");
+      else if (e.shiftKey && e.code === "Digit8") act = () => toggleList(ta, false);
+      else if (e.shiftKey && e.code === "Digit7") act = () => toggleList(ta, true);
+      if (act) { e.preventDefault(); act(); }
+      return;
+    }
+    if (e.isComposing) return;
+    if (e.key === "Enter" && !e.shiftKey && !e.altKey) { if (continueList(ta)) e.preventDefault(); }
+    else if (e.key === "Tab" && !e.altKey) { if (indentList(ta, e.shiftKey)) e.preventDefault(); }
+  });
+}
+
+function mdToolbar(ta){
+  const bar = el("div", "md-bar");
+  [
+    ["B", "Bold (Ctrl/Cmd + B)", () => wrapSel(ta, "**"), "md-b"],
+    ["I", "Italic (Ctrl/Cmd + I)", () => wrapSel(ta, "*"), "md-i"],
+    ["S", "Strikethrough (Ctrl/Cmd + Shift + X)", () => wrapSel(ta, "~~"), "md-s"],
+    ["• List", "Bulleted list (Ctrl/Cmd + Shift + 8)", () => toggleList(ta, false)],
+    ["1. List", "Numbered list (Ctrl/Cmd + Shift + 7)", () => toggleList(ta, true)]
+  ].forEach(([label, title, fn, cls]) => {
+    const b = el("button", "md-btn" + (cls ? " " + cls : ""), label);
+    b.type = "button";
+    b.title = title;
+    b.addEventListener("mousedown", e => e.preventDefault());   // keeps the cursor in the text box
+    b.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); ta.focus(); fn(); });
+    bar.appendChild(b);
+  });
+  return bar;
+}
+
 /* ---------- Login / logout ---------- */
-// Opens the login box on the page (no pop-ups, so the browser can't block it)
 function login(){
   $("#lpOwner").value = CONFIG.owner || "";
   $("#lpRepo").value  = CONFIG.repo  || "";
@@ -838,7 +1148,6 @@ function removeNoteImage(n, i){
   changed();
 }
 
-// Adds one or more images to an existing note
 async function addImagesToNote(n, files, card){
   const prepared = await prepareAll(files);
   if (!prepared.length) return;
@@ -846,7 +1155,7 @@ async function addImagesToNote(n, files, card){
     const paths = await uploadAll(prepared);
     n.images = (n.images || []).concat(paths);
     n.updated = Date.now();
-    if (card && card.isConnected) {          // update in place so you can keep typing / pasting
+    if (card && card.isConnected) {
       noteThumbs(card.querySelector(".thumbs"), n);
       scheduleSave();
     } else changed();
@@ -876,15 +1185,12 @@ function renameFolder(f){
   if (name && name.trim()) { f.name = name.trim(); changed(); }
 }
 
-/* NEW: folder ordering */
-// Moves a folder one place up (-1) or down (+1)
 function shiftFolder(f, d){
   const i = state.folders.indexOf(f), j = i + d;
   if (i < 0 || j < 0 || j >= state.folders.length) return;
   [state.folders[i], state.folders[j]] = [state.folders[j], state.folders[i]];
   changed();
 }
-// Drops a dragged folder before or after another folder
 function reorderFolder(dragId, targetId, after){
   if (!dragId || dragId === targetId) return;
   const moving = state.folders.find(x => x.id === dragId);
@@ -906,7 +1212,6 @@ function exportData(){
   URL.revokeObjectURL(a.href);
 }
 
-// Opens the file picker (multiple images allowed) and passes the chosen files on
 function pickImages(onFiles){
   const inp = el("input");
   inp.type = "file";
@@ -916,7 +1221,7 @@ function pickImages(onFiles){
   inp.click();
 }
 
-/* ---------- Drag & drop (notes into folders, and folders to reorder) ---------- */
+/* ---------- Drag & drop ---------- */
 const isFolderDrag = e => [...(e.dataTransfer.types || [])].includes(FOLDER_MIME);
 
 function makeDropZone(zone, getFolderId){
@@ -925,7 +1230,7 @@ function makeDropZone(zone, getFolderId){
     if (!editMode) return;
     if (isFolderDrag(e)) {
       const fid = getFolderId();
-      if (!fid) return;                         // folders can only be dropped on other folders
+      if (!fid) return;
       e.preventDefault();
       e.dataTransfer.dropEffect = "move";
       const r = zone.getBoundingClientRect();
@@ -968,28 +1273,6 @@ function swatchRow(current, onPick){
   return wrap;
 }
 
-// Turns web links in a note into clickable links that open in a new tab
-function linkify(text){
-  const frag = document.createDocumentFragment();
-  const re = /(https?:\/\/[^\s]+|www\.[^\s]+)/gi;
-  let last = 0, m;
-  while ((m = re.exec(text))) {
-    let url = m[0].replace(/[.,!?;:)\]'"]+$/, "");   // ignore punctuation at the end
-    frag.append(text.slice(last, m.index));
-    const a = el("a", null, url);
-    a.href = url.toLowerCase().startsWith("www.") ? "https://" + url : url;
-    a.target = "_blank";
-    a.rel = "noopener noreferrer";
-    a.draggable = false;
-    a.addEventListener("click", e => e.stopPropagation());
-    a.addEventListener("dblclick", e => e.stopPropagation());
-    frag.append(a);
-    last = m.index + url.length;
-  }
-  frag.append(text.slice(last));
-  return frag;
-}
-
 function noteThumbs(box, n){
   const paths = n.images || [];
   const widths = paths.map(p => (n.imgSizes || {})[p]);
@@ -999,7 +1282,6 @@ function noteThumbs(box, n){
              { widths, onResize: editMode ? (i, pct) => setImageSize(n, paths[i], pct) : null });
 }
 
-// Saves (or clears) the custom width of one image in a note
 function setImageSize(n, path, pct){
   n.imgSizes = n.imgSizes || {};
   if (pct == null) delete n.imgSizes[path];
@@ -1015,7 +1297,7 @@ function noteEl(n){
   card.style.gridColumn = "span " + span;
   if (n.h) card.style.minHeight = n.h + "px";
   const txt = el("div", "note-text");
-  if (n.text) txt.append(linkify(n.text));
+  if (n.text) txt.append(renderMarkdown(n.text));       // CHANGED: markdown instead of plain text
   const imgs = el("div", "thumbs");
   card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
   noteThumbs(imgs, n);
@@ -1045,7 +1327,7 @@ function noteEl(n){
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
   card.appendChild(tools);
-  card.append(...makeNoteGrip(card, n));
+  card.append(...makeNoteResizers(card, n));            // CHANGED: edge + corner handles
   txt.addEventListener("dblclick", () => editNote(card, n));
   return card;
 }
@@ -1055,11 +1337,11 @@ function editNote(card, n){
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
   ta.placeholder = "Edit text, or paste images…";
-  card.querySelector(".note-text").replaceWith(ta);
+  card.querySelector(".note-text").replaceWith(mdToolbar(ta), ta);   // NEW: formatting toolbar
+  attachMdKeys(ta);
   ta.focus();
   let done = false, uploading = 0;
 
-  // Paste images while editing – you stay in edit mode, so you can paste several one after another
   ta.addEventListener("paste", async e => {
     const files = imagesFromClipboard(e);
     if (!files.length) return;
@@ -1181,6 +1463,9 @@ function render(){
 }
 
 /* ---------- Start up ---------- */
+$("#noteInput").before(mdToolbar($("#noteInput")));   // NEW: formatting toolbar above the new-note box
+attachMdKeys($("#noteInput"));
+
 $("#authBtn").addEventListener("click", () => editMode ? logout() : login());
 $("#lpGo").addEventListener("click", doLogin);
 $("#lpCancel").addEventListener("click", closeLogin);
@@ -1207,7 +1492,6 @@ document.addEventListener("keydown", e => {
 });
 makeDropZone($("#looseZone"), () => null);
 
-// Paste images anywhere on the page (except while editing a note) → they go into the new-note box
 document.addEventListener("paste", e => {
   if (!editMode) return;
   const t = e.target;
