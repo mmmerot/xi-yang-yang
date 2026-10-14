@@ -160,17 +160,16 @@
       "images": [
         "images/muuwqollf1c65.png",
         "images/muuwsch9u04yw.jpg",
-        "images/muux7my4qn6ee.jpg",
         "images/mv7qys4rebsqy.jpg",
-        "images/mv7r5sjp5p5wq.jpg"
+        "images/mv7r5sjp5p5wq.jpg",
+        "images/mv83meigxwztm.jpg"
       ],
       "folderId": null,
       "created": 1790755535885,
-      "updated": 1791981672421,
+      "updated": 1791981679688,
       "span": 2,
       "h": 376,
       "imgSizes": {
-        "images/muux7my4qn6ee.jpg": 45.9,
         "images/muuwqollf1c65.png": 39,
         "images/muuwsch9u04yw.jpg": 48,
         "images/mv7r5sjp5p5wq.jpg": 37.8,
