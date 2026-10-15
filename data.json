@@ -353,7 +353,10 @@
       "created": 1792072772951,
       "updated": 1792072772951,
       "order": -4,
-      "style": "plain"
+      "style": "plain",
+      "imgSizes": {
+        "images/mv9luta3tooky.png": 50.7
+      }
     }
   ],
   "settings": {
