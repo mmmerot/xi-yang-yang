@@ -366,5 +366,7 @@
       }
     }
   ],
-  "settings": {}
+  "settings": {
+    "font": "Comic Sans"
+  }
 }
