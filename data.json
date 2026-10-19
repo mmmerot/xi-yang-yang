@@ -370,7 +370,7 @@
     }
   ],
   "settings": {
-    "font": "nunito",
+    "font": "mono",
     "size": 12,
     "styles": [
       {
