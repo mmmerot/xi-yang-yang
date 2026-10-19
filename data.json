@@ -3,32 +3,38 @@
     {
       "id": "munuiws9va62u",
       "name": "random ideas",
-      "color": "yellow"
+      "color": "yellow",
+      "isPublic": false
     },
     {
       "id": "munhgm88o89vl",
       "name": "harvest moon",
-      "color": "green"
+      "color": "green",
+      "isPublic": false
     },
     {
       "id": "muns3l61gg3ow",
       "name": "references",
-      "color": "violet"
+      "color": "violet",
+      "isPublic": false
     },
     {
       "id": "muw62k9imbpgn",
       "name": "notes on books",
-      "color": "blue"
+      "color": "blue",
+      "isPublic": false
     },
     {
       "id": "muxhw2x1xnqfd",
       "name": "rants",
-      "color": "red"
+      "color": "red",
+      "isPublic": false
     },
     {
       "id": "mv6dsyctqtnb7",
       "name": "lame",
-      "color": "violet"
+      "color": "violet",
+      "isPublic": false
     }
   ],
   "notes": [
@@ -358,67 +364,5 @@
         "images/mv9luta3tooky.png": 50.7
       }
     }
-  ],
-  "settings": {
-    "font": "mono",
-    "size": 11,
-    "styles": [
-      {
-        "id": "plain",
-        "name": "Plain",
-        "bg": "#ffffff",
-        "border": "#e7e7e7",
-        "text": "#222222",
-        "font": ""
-      },
-      {
-        "id": "sticky",
-        "name": "Sticky",
-        "bg": "#fff7c2",
-        "border": "#f0de8a",
-        "text": "#3d3500",
-        "font": ""
-      },
-      {
-        "id": "mint",
-        "name": "Mint",
-        "bg": "#e6f6ec",
-        "border": "#bfe5cc",
-        "text": "#1d3b2a",
-        "font": ""
-      },
-      {
-        "id": "sky",
-        "name": "Sky",
-        "bg": "#e7f2ff",
-        "border": "#c2dcfa",
-        "text": "#12324f",
-        "font": ""
-      },
-      {
-        "id": "blush",
-        "name": "Blush",
-        "bg": "#fdebef",
-        "border": "#f6c9d3",
-        "text": "#4a1d27",
-        "font": ""
-      },
-      {
-        "id": "lavender",
-        "name": "Lavender",
-        "bg": "#f1ebfb",
-        "border": "#d9c9f2",
-        "text": "#2f1f4a",
-        "font": ""
-      },
-      {
-        "id": "night",
-        "name": "Night",
-        "bg": "#2a2a30",
-        "border": "#3a3a42",
-        "text": "#f2f2f2",
-        "font": ""
-      }
-    ]
-  }
+  ]
 }
