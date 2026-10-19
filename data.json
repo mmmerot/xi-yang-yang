@@ -367,6 +367,7 @@
     }
   ],
   "settings": {
-    "font": "American Typewriter"
+    "font": "Anonymous Pro",
+    "fontSize": 12
   }
 }
