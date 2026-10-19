@@ -6,17 +6,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pixa dooba tiki mouse!!</title>
 <style>
-  :root{ --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; --accent:#0090ff; }
+  :root{ --ui-font:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif; --ui-size:14px; --bg:#fafafa; --card:#ffffff; --text:#222; --muted:#999; --line:#e7e7e7; --green:#30a46c; --accent:#0090ff; }
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--text);
-       font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;font-size:14px}
+       font-family:var(--ui-font);font-size:var(--ui-size)}
   header{position:sticky;top:0;z-index:10;display:flex;align-items:center;justify-content:space-between;
          padding:16px 24px;background:#fff;border-bottom:1px solid var(--line)}
   h1{margin:0;font-size:17px;font-weight:600;letter-spacing:.4px}
   h2{margin:0 0 12px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:1px;color:var(--muted)}
   .head-right{display:flex;align-items:center;gap:8px}
   .status{font-size:12px;color:var(--muted);margin-right:6px}
-  button,select,input,textarea{font:inherit;font-size:13px;color:var(--text)}
+  button,select,input,textarea{font-family:inherit;font-size:calc(var(--ui-size) - 1px);color:var(--text)}
   button{border:1px solid var(--line);background:#fff;padding:6px 12px;border-radius:6px;cursor:pointer}
   button:hover{background:#f3f3f3}
   button:disabled{opacity:.5;cursor:wait}
@@ -58,7 +58,7 @@
   body.editing .note.is-editing{cursor:auto;border-color:#b9dcff}
   .note.dragging{opacity:.4}
   .note.resizing{border-color:var(--accent)}
-  .note-text{font-size:14px;line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
+  .note-text{font-size:var(--ui-size);line-height:1.45;word-wrap:break-word;overflow-wrap:anywhere}
   .note-text:empty{display:none}
   .note-text a{color:#0969da;text-decoration:underline;word-break:break-all}
   .note-text .md-p,.note-text li{white-space:pre-wrap}
@@ -72,7 +72,7 @@
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
   .note-edit{display:block;width:100%;margin:0;padding:0;border:none;border-radius:3px;background:transparent;
-             font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;overflow:hidden;
+             font:inherit;font-size:var(--ui-size);line-height:1.45;color:var(--text);resize:none;overflow:hidden;
              outline:none;flex:1 0 auto;min-height:1.45em;
              box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px #b9dcff}
   .note-edit:focus{box-shadow:0 0 0 5px #f2f8ff,0 0 0 6px var(--accent)}
@@ -114,14 +114,15 @@
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  .grip{position:absolute;right:-5px;bottom:-5px;width:14px;height:14px;border-radius:50%;z-index:2;
-        background:#fff;border:2px solid var(--accent);box-shadow:0 1px 3px rgba(0,0,0,.25);
-        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,transform .15s}
-  .grip::before{content:"";position:absolute;inset:-7px}
+  /* Image resize handle: subtle corner, shown only on hover */
+  .grip{position:absolute;right:3px;bottom:3px;width:12px;height:12px;z-index:2;
+        border-right:2px solid rgba(255,255,255,.95);border-bottom:2px solid rgba(255,255,255,.95);
+        border-bottom-right-radius:4px;filter:drop-shadow(0 0 1px rgba(0,0,0,.6));
+        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,border-color .15s}
+  .grip::before{content:"";position:absolute;inset:-6px}
   .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
-  .grip:hover,.thumb.resizing .grip{transform:scale(1.2)}
-  .grip:focus{box-shadow:0 0 0 3px rgba(0,144,255,.35)}
-  @media (hover:none){ .grip{opacity:1} }
+  .grip:hover,.thumb.resizing .grip,.grip:focus{border-color:var(--accent)}
+  @media (hover:none){ .grip{opacity:.8} }
   .thumb.resizing img{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
   .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
             background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
@@ -177,6 +178,21 @@
   .lp-msg{font-size:12px;color:#e5484d;min-height:16px}
   .login-box .row{justify-content:flex-end}
 
+  /* Note colour + font */
+  .note-style{display:none;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--line);
+              border-radius:6px;background:#fff;font-size:12px}
+  .note-style.open{display:flex}
+  .note-style .swatch{width:18px;height:18px;border-color:#ddd}
+  .note-style .swatch.sel{border-color:#222}
+  .note-style select{font-size:12px;padding:2px 4px}
+
+  /* Settings panel */
+  .settings-box .set-row{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
+  .settings-box select{border:1px solid var(--line);border-radius:6px;padding:7px 10px}
+  .px-wrap{display:flex;align-items:center;gap:6px}
+  .px-wrap input{width:90px}
+  .px-wrap span{color:var(--text)}
+
   /* Save-to visibility controls */
   .folder.public{box-shadow:0 0 0 2px rgba(0,144,255,.14)}
   button.visibility-toggle{width:30px;height:28px;display:inline-flex;align-items:center;justify-content:center;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:#aaa;font-size:17px;line-height:1;opacity:.55}
@@ -194,6 +210,7 @@
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
+    <button type="button" class="edit-only" id="settingsBtn" title="Settings – change font and font size">⚙</button>
     <button type="button" id="authBtn">Owner login</button>
   </div>
 </header>
@@ -237,6 +254,22 @@
     <div class="row">
       <button type="button" id="lpCancel">Cancel</button>
       <button type="submit" id="lpGo">Log in</button>
+    </div>
+  </form>
+</div>
+
+<div class="login-panel" id="settingsPanel">
+  <form class="login-box settings-box" id="settingsForm" novalidate>
+    <h3>Settings</h3>
+    <label class="set-row">Font <select id="setFont"></select></label>
+    <label class="set-row">Font size
+      <span class="px-wrap"><input id="setSize" type="number" min="10" max="32" step="1"><span>px</span></span>
+    </label>
+    <div class="lp-msg" id="setMsg"></div>
+    <div class="row">
+      <button type="button" id="setReset">Reset</button>
+      <button type="button" id="setCancel">Cancel</button>
+      <button type="submit" id="setSave">Save</button>
     </div>
   </form>
 </div>
@@ -297,6 +330,25 @@ const COLORS = {
   blue:"#0090ff", indigo:"#3e63dd", violet:"#8e4ec6"
 };
 const OLD_SIZES = { s: 1, m: 2, l: 3 };
+
+/* Notepad colours (per note) */
+const NOTE_COLORS = {
+  white:"#ffffff", yellow:"#fff6bf", orange:"#ffe5cc", pink:"#ffe1ea",
+  green:"#dff5e3", blue:"#dcefff", purple:"#ece2fb", grey:"#f0f0f0"
+};
+/* Fonts (used for notes and for the whole page) */
+const FONTS = {
+  "Default":         '-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif',
+  "Arial":           'Arial,Helvetica,sans-serif',
+  "Verdana":         'Verdana,Geneva,sans-serif',
+  "Trebuchet":       '"Trebuchet MS",Helvetica,sans-serif',
+  "Georgia":         'Georgia,"Times New Roman",serif',
+  "Times New Roman": '"Times New Roman",Times,serif',
+  "Courier":         '"Courier New",Courier,monospace',
+  "Comic Sans":      '"Comic Sans MS","Comic Sans",cursive',
+  "Handwriting":     '"Segoe Print","Bradley Hand","Brush Script MT",cursive'
+};
+const DEFAULT_UI_SIZE = 14;
 const FOLDER_MIME = "application/x-bs-folder";
 
 let state = { folders: [], notes: [] };
@@ -317,6 +369,46 @@ const setStatus = t => $("#status").textContent = t;
 const fmtDate = ts => new Date(ts).toLocaleString("en-SG",
   { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
 
+/* ---------- UI settings ---------- */
+function applySettings(){
+  const st = state.settings || {};
+  const root = document.documentElement.style;
+  root.setProperty("--ui-font", FONTS[st.font] || FONTS["Default"]);
+  const px = Math.min(32, Math.max(10, parseInt(st.fontSize, 10) || DEFAULT_UI_SIZE));
+  root.setProperty("--ui-size", px + "px");
+}
+function openSettings(){
+  const st = state.settings || {};
+  const sel = $("#setFont");
+  sel.innerHTML = "";
+  Object.keys(FONTS).forEach(name => {
+    const o = new Option(name, name);
+    o.style.fontFamily = FONTS[name];
+    sel.append(o);
+  });
+  sel.value = FONTS[st.font] ? st.font : "Default";
+  $("#setSize").value = parseInt(st.fontSize, 10) || DEFAULT_UI_SIZE;
+  $("#setMsg").textContent = "";
+  $("#settingsPanel").classList.add("open");
+  setTimeout(() => sel.focus(), 0);
+}
+function closeSettings(){ $("#settingsPanel").classList.remove("open"); }
+function saveSettings(){
+  const size = parseInt($("#setSize").value, 10);
+  if (!size || size < 10 || size > 32) { $("#setMsg").textContent = "Please enter a font size between 10 and 32 px."; return; }
+  const font = $("#setFont").value;
+  state.settings = state.settings || {};
+  if (font === "Default") delete state.settings.font; else state.settings.font = font;
+  if (size === DEFAULT_UI_SIZE) delete state.settings.fontSize; else state.settings.fontSize = size;
+  applySettings();
+  closeSettings();
+  changed();
+}
+function resetSettings(){
+  $("#setFont").value = "Default";
+  $("#setSize").value = DEFAULT_UI_SIZE;
+}
+
 function el(tag, cls, text){
   const e = document.createElement(tag);
   if (cls) e.className = cls;
@@ -333,7 +425,8 @@ function normalise(d){
   const folders = Array.isArray(d && d.folders) ? d.folders : [];
   const notes = Array.isArray(d && d.notes) ? d.notes : [];
   folders.forEach(f => { f.isPublic = f.isPublic === true; });
-  return { folders, notes };
+  const settings = (d && d.settings && typeof d.settings === "object") ? d.settings : {};
+  return { folders, notes, settings };
 }
 function b64encode(str){
   const bytes = new TextEncoder().encode(str);
@@ -1358,6 +1451,8 @@ function noteEl(n){
   card.dataset.span = span;
   card.style.gridColumn = "span " + span;
   if (n.h) card.style.minHeight = n.h + "px";
+  if (n.color && NOTE_COLORS[n.color]) card.style.background = NOTE_COLORS[n.color];
+  if (n.font && FONTS[n.font]) card.style.fontFamily = FONTS[n.font];
   const txt = el("div", "note-text");
   if (n.text) txt.append(renderMarkdown(n.text));
   const imgs = el("div", "thumbs");
@@ -1381,17 +1476,58 @@ function noteEl(n){
     if (move.value) moveNote(n.id, move.value === "__loose" ? null : move.value);
   });
 
+  const styleBox = noteStyleBox(n, card);
   const tools = el("div", "note-tools");
   tools.append(
     move,
     iconBtn("🖼", "Add images to this note", () => pickImages(files => addImagesToNote(n, files, card))),
+    iconBtn("🎨", "Note colour and font", () => styleBox.classList.toggle("open")),
     iconBtn("✎", "Edit note (you can paste more images while editing)", () => editNote(card, n)),
     iconBtn("✕", "Delete note", () => deleteNote(n))
   );
-  card.appendChild(tools);
+  card.append(styleBox, tools);
   card.append(...makeNoteResizers(card, n));
   txt.addEventListener("dblclick", () => editNote(card, n));
   return card;
+}
+
+function noteStyleBox(n, card){
+  const box = el("div", "note-style");
+  box.addEventListener("click", e => e.stopPropagation());
+  box.addEventListener("mousedown", e => e.stopPropagation());
+
+  const colours = el("div", "swatches");
+  Object.entries(NOTE_COLORS).forEach(([name, hex]) => {
+    const s = el("button", "swatch" + ((n.color || "white") === name ? " sel" : ""));
+    s.type = "button";
+    s.style.background = hex;
+    s.title = name;
+    s.addEventListener("click", e => {
+      e.stopPropagation();
+      if (name === "white") delete n.color; else n.color = name;
+      card.style.background = NOTE_COLORS[name];
+      colours.querySelectorAll(".swatch").forEach(x => x.classList.toggle("sel", x === s));
+      scheduleSave();
+    });
+    colours.appendChild(s);
+  });
+
+  const font = el("select");
+  font.title = "Note font";
+  Object.keys(FONTS).forEach(name => {
+    const o = new Option(name === "Default" ? "Font: page default" : "Font: " + name, name);
+    o.style.fontFamily = FONTS[name];
+    font.append(o);
+  });
+  font.value = FONTS[n.font] ? n.font : "Default";
+  font.addEventListener("change", () => {
+    if (font.value === "Default") { delete n.font; card.style.fontFamily = ""; }
+    else { n.font = font.value; card.style.fontFamily = FONTS[n.font]; }
+    scheduleSave();
+  });
+
+  box.append(colours, font);
+  return box;
 }
 
 function editNote(card, n){
@@ -1399,9 +1535,11 @@ function editNote(card, n){
   if (!txtEl || card.classList.contains("is-editing")) return;
 
   const cardH = card.getBoundingClientRect().height;
-  const lineH = 14 * 1.45;
+  const lineH = (parseFloat(getComputedStyle(txtEl).fontSize) || DEFAULT_UI_SIZE) * 1.45;
   const textH = n.text ? txtEl.getBoundingClientRect().height : lineH * 3;
 
+  const sb = card.querySelector(".note-style");
+  if (sb) sb.classList.remove("open");
   card.draggable = false;
   card.classList.add("is-editing");
   card.style.minHeight = Math.round(Math.max(cardH, n.h || 0)) + "px";
@@ -1545,6 +1683,7 @@ function folderEl(f, idx){
 
 function render(){
   document.body.classList.toggle("editing", editMode);
+  applySettings();
 
   const folderIds = new Set(state.folders.map(f => f.id));
   const loose = editMode ? state.notes
@@ -1580,6 +1719,12 @@ $("#authBtn").addEventListener("click", e => {
   if (editMode) logout(); else login();
 });
 $("#loginForm").addEventListener("submit", e => { e.preventDefault(); doLogin(); });
+$("#settingsBtn").addEventListener("click", e => { e.preventDefault(); openSettings(); });
+$("#settingsForm").addEventListener("submit", e => { e.preventDefault(); saveSettings(); });
+$("#setCancel").addEventListener("click", closeSettings);
+$("#setReset").addEventListener("click", resetSettings);
+$("#settingsPanel").addEventListener("click", e => { if (e.target.id === "settingsPanel") closeSettings(); });
+$("#settingsPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeSettings(); });
 $("#lpCancel").addEventListener("click", closeLogin);
 $("#loginPanel").addEventListener("click", e => { if (e.target.id === "loginPanel") closeLogin(); });
 $("#loginPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeLogin(); });
