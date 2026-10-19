@@ -44,7 +44,6 @@
   .md-btn.md-b{font-weight:700}
   .md-btn.md-i{font-style:italic}
   .md-btn.md-s{text-decoration:line-through}
-  /* CHANGED: inside a note, the toolbar sits in the tools row (not above the text) */
   .note-tools .md-bar{margin-right:auto;gap:2px}
   .note-tools .md-btn{padding:1px 6px;min-width:24px;font-size:11px}
   .md-done{padding:1px 8px;font-size:11px;background:var(--accent);border-color:var(--accent);color:#fff}
@@ -72,8 +71,6 @@
   .note-meta{font-size:11px;color:var(--muted);margin-top:auto}
   .note-tools{display:flex;gap:4px;align-items:center;justify-content:flex-end;flex-wrap:wrap;padding-right:10px}
   .note-tools select{font-size:11px;padding:2px 4px;margin-right:auto;max-width:120px}
-  /* CHANGED: edit-in-place – the editor has no border/padding of its own, so the text stays exactly where it was.
-     The blue ring is drawn with box-shadow, which takes up no space. */
   .note-edit{display:block;width:100%;margin:0;padding:0;border:none;border-radius:3px;background:transparent;
              font:inherit;font-size:14px;line-height:1.45;color:var(--text);resize:none;overflow:hidden;
              outline:none;flex:1 0 auto;min-height:1.45em;
@@ -167,10 +164,11 @@
   .palette{display:none;margin-right:6px}
   .palette.open{display:flex}
 
-  .login-panel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  /* FIXED: login panel is shown/hidden with a class (no reliance on the [hidden] attribute) */
+  .login-panel{position:fixed;inset:0;z-index:60;display:none;align-items:center;justify-content:center;
                background:rgba(0,0,0,.35)}
-  .login-panel[hidden]{display:none}
-  .login-box{background:#fff;border-radius:10px;padding:20px;width:min(360px,92vw);
+  .login-panel.open{display:flex}
+  .login-box{background:#fff;border-radius:10px;padding:20px;width:min(360px,92vw);margin:0;
              display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
   .login-box h3{margin:0 0 4px;font-size:15px}
   .login-box label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted)}
@@ -196,7 +194,7 @@
   <div class="head-right">
     <span class="status" id="status"></span>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
-    <button id="authBtn">Owner login</button>
+    <button type="button" id="authBtn">Owner login</button>
   </div>
 </header>
 
@@ -228,18 +226,19 @@
   </section>
 </main>
 
-<div class="login-panel" id="loginPanel" hidden>
-  <div class="login-box">
+<!-- FIXED: the login box is now a real <form>, so Enter and the Log in button both submit it once -->
+<div class="login-panel" id="loginPanel">
+  <form class="login-box" id="loginForm" autocomplete="off" novalidate>
     <h3>Owner login</h3>
     <label>GitHub username <input id="lpOwner" autocomplete="off" placeholder="e.g. vanessatan"></label>
     <label>Repository name <input id="lpRepo" autocomplete="off" placeholder="e.g. brainstorm"></label>
     <label>Token <input id="lpToken" type="password" autocomplete="off" placeholder="github_pat_…"></label>
     <div class="lp-msg" id="lpMsg"></div>
     <div class="row">
-      <button id="lpCancel">Cancel</button>
-      <button id="lpGo">Log in</button>
+      <button type="button" id="lpCancel">Cancel</button>
+      <button type="submit" id="lpGo">Log in</button>
     </div>
-  </div>
+  </form>
 </div>
 
 <div class="lightbox" id="lightbox">
@@ -250,20 +249,38 @@
 </div>
 
 <script>
+/* FIXED: error reporting is set up first, so any problem shows in the header instead of failing silently */
+window.addEventListener("error", e => {
+  const s = document.getElementById("status");
+  if (s) s.textContent = "Error: " + e.message;
+});
+window.addEventListener("unhandledrejection", e => {
+  const s = document.getElementById("status");
+  if (s) s.textContent = "Error: " + ((e.reason && e.reason.message) || e.reason);
+});
+
 /* =====================================================================
    SETTINGS (optional): you can type your username + repo in the login box instead
+   branch: leave blank to use the repository's default branch (main or master)
    ===================================================================== */
 const CONFIG = {
   owner:  "",
   repo:   "",
-  branch: "main",
+  branch: "",
   path:   "data.json",
   imageFolder: "images",
   maxImageSide: 1600
 };
 
-if (!CONFIG.owner) CONFIG.owner = localStorage.getItem("bs_owner") || "";
-if (!CONFIG.repo)  CONFIG.repo  = localStorage.getItem("bs_repo")  || "";
+/* FIXED: safe storage – if the browser blocks localStorage, the page no longer crashes */
+const store = {
+  get(k){ try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v){ try { localStorage.setItem(k, v); } catch (e) {} },
+  del(k){ try { localStorage.removeItem(k); } catch (e) {} }
+};
+
+if (!CONFIG.owner) CONFIG.owner = store.get("bs_owner") || "";
+if (!CONFIG.repo)  CONFIG.repo  = store.get("bs_repo")  || "";
 
 (function autodetect(){
   const host = location.hostname;
@@ -284,13 +301,14 @@ const FOLDER_MIME = "application/x-bs-folder";
 
 let state = { folders: [], notes: [] };
 let sha = null;
-let token = localStorage.getItem("bs_token") || "";
+let token = store.get("bs_token") || "";
 let editMode = false;
 let saveTimer = null, saving = false, pending = false, dirty = false, busy = 0;
 let newFolderColor = "blue";
 let pendingImages = [];
 const localImg = {};
-const collapsed = JSON.parse(localStorage.getItem("bs_collapsed") || "{}");
+let collapsed = {};
+try { collapsed = JSON.parse(store.get("bs_collapsed") || "{}") || {}; } catch (e) { collapsed = {}; }
 let lb = { list: [], i: 0 };
 
 const $ = s => document.querySelector(s);
@@ -298,8 +316,6 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 const setStatus = t => $("#status").textContent = t;
 const fmtDate = ts => new Date(ts).toLocaleString("en-SG",
   { day:"numeric", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit" });
-
-window.addEventListener("error", e => setStatus("Error: " + e.message));
 
 function el(tag, cls, text){
   const e = document.createElement(tag);
@@ -325,15 +341,19 @@ function b64encode(str){
   return btoa(bin);
 }
 function b64decode(b64){
-  const bin = atob(b64.replace(/\n/g, ""));
+  const bin = atob(b64.replace(/\s/g, ""));
   return new TextDecoder().decode(Uint8Array.from(bin, c => c.charCodeAt(0)));
 }
 
 /* ---------- GitHub storage ---------- */
-const apiUrl = p =>
-  `https://api.github.com/repos/${CONFIG.owner}/${CONFIG.repo}/contents/${p || CONFIG.path}`;
-const rawUrl = p =>
-  `https://raw.githubusercontent.com/${CONFIG.owner}/${CONFIG.repo}/${CONFIG.branch}/${p}`;
+/* FIXED: URLs are built with plain string joins (no template literals that can get mangled when copied) */
+const GH_API = "https://api.github.com";
+const GH_RAW = "https://raw.githubusercontent.com";
+const repoPath = () => encodeURIComponent(CONFIG.owner) + "/" + encodeURIComponent(CONFIG.repo);
+const apiUrl = p => GH_API + "/repos/" + repoPath() + "/contents/" + (p || CONFIG.path);
+const rawUrl = p => GH_RAW + "/" + repoPath() + "/" + (CONFIG.branch || "HEAD") + "/" + p;
+const refQ = () => CONFIG.branch ? "?ref=" + encodeURIComponent(CONFIG.branch) : "";
+const withBranch = body => { if (CONFIG.branch) body.branch = CONFIG.branch; return body; };
 const ghHeaders = () =>
   ({ "Authorization": "Bearer " + token, "Accept": "application/vnd.github+json" });
 
@@ -351,22 +371,33 @@ async function loadPublic(){
   } catch (e) { /* no data yet */ }
 }
 
+/* FIXED: handles an empty data.json, a data.json over 1 MB, and a broken data.json without crashing */
 async function loadFromGitHub(){
-  const r = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+  const r = await fetch(apiUrl() + refQ(), { headers: ghHeaders(), cache: "no-store" });
   if (r.status === 404) { sha = null; return; }
-  if (!r.ok) throw new Error("Load failed (" + r.status + ")");
+  if (r.status === 401) throw new Error("Token not accepted (401).");
+  if (!r.ok) throw new Error("Could not load " + CONFIG.path + " (" + r.status + ")");
   const j = await r.json();
   sha = j.sha;
-  state = normalise(JSON.parse(b64decode(j.content)));
+  let b64 = j.content || "";
+  if (!b64 && j.size > 0) {
+    const b = await fetch(GH_API + "/repos/" + repoPath() + "/git/blobs/" + j.sha,
+                          { headers: ghHeaders(), cache: "no-store" });
+    if (!b.ok) throw new Error("Could not load " + CONFIG.path + " (" + b.status + ")");
+    b64 = (await b.json()).content || "";
+  }
+  const text = b64 ? b64decode(b64).trim() : "";
+  if (!text) { state = normalise({}); return; }
+  try { state = normalise(JSON.parse(text)); }
+  catch (e) { throw new Error(CONFIG.path + " in your repo is not valid JSON, so it was not loaded (nothing was overwritten)."); }
 }
 
 async function saveToGitHub(retry = true){
   setStatus("Saving…");
-  const body = {
+  const body = withBranch({
     message: "Update notes " + new Date().toISOString(),
-    content: b64encode(JSON.stringify(state, null, 2)),
-    branch: CONFIG.branch
-  };
+    content: b64encode(JSON.stringify(state, null, 2))
+  });
   if (sha) body.sha = sha;
   const r = await fetch(apiUrl(), {
     method: "PUT",
@@ -380,7 +411,7 @@ async function saveToGitHub(retry = true){
     return;
   }
   if ((r.status === 409 || r.status === 422) && retry) {
-    const g = await fetch(apiUrl() + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+    const g = await fetch(apiUrl() + refQ(), { headers: ghHeaders(), cache: "no-store" });
     sha = g.ok ? (await g.json()).sha : null;
     return saveToGitHub(false);
   }
@@ -463,15 +494,14 @@ function imagesFromClipboard(e){
 }
 
 async function uploadImage(prepared){
-  const path = `${CONFIG.imageFolder}/${uid()}.${prepared.ext}`;
+  const path = CONFIG.imageFolder + "/" + uid() + "." + prepared.ext;
   const r = await ghQueue(() => fetch(apiUrl(path), {
     method: "PUT",
     headers: { ...ghHeaders(), "Content-Type": "application/json" },
-    body: JSON.stringify({
+    body: JSON.stringify(withBranch({
       message: "Add image " + path,
-      content: prepared.dataUrl.split(",")[1],
-      branch: CONFIG.branch
-    })
+      content: prepared.dataUrl.split(",")[1]
+    }))
   }));
   if (!r.ok) throw new Error("Image upload failed (" + r.status + ")");
   localImg[path] = prepared.dataUrl;
@@ -481,12 +511,12 @@ async function uploadImage(prepared){
 function deleteImage(path){
   return ghQueue(async () => {
     try {
-      const g = await fetch(apiUrl(path) + "?ref=" + CONFIG.branch, { headers: ghHeaders(), cache: "no-store" });
+      const g = await fetch(apiUrl(path) + refQ(), { headers: ghHeaders(), cache: "no-store" });
       if (!g.ok) return;
       await fetch(apiUrl(path), {
         method: "DELETE",
         headers: { ...ghHeaders(), "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Remove image " + path, sha: (await g.json()).sha, branch: CONFIG.branch })
+        body: JSON.stringify(withBranch({ message: "Remove image " + path, sha: (await g.json()).sha }))
       });
     } catch (e) { /* leaving an unused image behind is harmless */ }
   });
@@ -497,7 +527,7 @@ async function uploadAll(prepared){
   const paths = [];
   try {
     for (let i = 0; i < prepared.length; i++) {
-      setStatus(`Uploading image ${i + 1} of ${prepared.length}…`);
+      setStatus("Uploading image " + (i + 1) + " of " + prepared.length + "…");
       paths.push(await uploadImage(prepared[i]));
     }
   } finally { busy--; }
@@ -523,7 +553,7 @@ function showLightbox(){
   $("#lightboxImg").src = lb.list[lb.i];
   const many = lb.list.length > 1;
   $("#lbPrev").style.display = $("#lbNext").style.display = many ? "" : "none";
-  $("#lbCount").textContent = many ? `${lb.i + 1} / ${lb.list.length}` : "";
+  $("#lbCount").textContent = many ? (lb.i + 1) + " / " + lb.list.length : "";
 }
 function stepLightbox(d){
   if (lb.list.length < 2) return;
@@ -602,7 +632,7 @@ function makeGrip(wrap, box, img, done){
   };
 
   g.addEventListener("dragstart", e => e.preventDefault());
-  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
+  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
   g.addEventListener("pointerdown", e => {
     if (e.button !== 0) return;
     e.preventDefault();
@@ -705,7 +735,7 @@ function makeNoteResizers(card, n){
     const h = el("div", "rz rz-" + dir);
     h.title = tip + " · double-click to reset";
     h.addEventListener("dragstart", e => e.preventDefault());
-    h.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });  // keeps the editor focused
+    h.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
     h.addEventListener("click", e => e.stopPropagation());
     h.addEventListener("dblclick", e => {
       e.stopPropagation();
@@ -794,7 +824,7 @@ function startNoteResize(e, card, n, dir, handle){
     card.dataset.span = span;
     applySpan(card, span);
     card.style.minHeight = n.h ? n.h + "px" : "";
-    if (editing && card._refit) card._refit();   // editor re-fills the resized note
+    if (editing && card._refit) card._refit();
     scheduleSave();
   };
   const onUp = () => finish(true);
@@ -822,7 +852,7 @@ const LIST_RE = /^(\s*)([-*+]|\d{1,9}[.)])\s+/;
 
 function makeLink(url){
   const a = el("a", null, url);
-  a.href = url.toLowerCase().startsWith("www.") ? "https://" + url : url;
+  a.href = url.toLowerCase().startsWith("www.") ? "https:" + "//" + url : url;
   a.target = "_blank";
   a.rel = "noopener noreferrer";
   a.draggable = false;
@@ -1036,60 +1066,86 @@ function mdToolbar(ta){
   return bar;
 }
 
-/* ---------- Login / logout ---------- */
+/* ---------- Login / logout (REWRITTEN) ---------- */
+let loggingIn = false;
+
 function login(){
   $("#lpOwner").value = CONFIG.owner || "";
   $("#lpRepo").value  = CONFIG.repo  || "";
   $("#lpToken").value = "";
   $("#lpMsg").textContent = "";
-  $("#loginPanel").hidden = false;
-  (CONFIG.owner && CONFIG.repo ? $("#lpToken") : $("#lpOwner")).focus();
+  $("#loginPanel").classList.add("open");
+  setTimeout(() => (CONFIG.owner && CONFIG.repo ? $("#lpToken") : $("#lpOwner")).focus(), 0);
 }
-function closeLogin(){ $("#loginPanel").hidden = true; }
+function closeLogin(){
+  if (loggingIn) return;
+  $("#loginPanel").classList.remove("open");
+}
+
+/* Accepts "vanessatan", "@vanessatan", "github.com/vanessatan/brainstorm", "vanessatan/brainstorm", etc. */
+function cleanRepoInput(owner, repo){
+  const strip = s => s.trim().replace(/^https?:\/\/(www\.)?github\.com\//i, "").replace(/^github\.com\//i, "")
+                       .replace(/\.git$/i, "").replace(/\/+$/, "");
+  owner = strip(owner).replace(/^@/, "");
+  repo = strip(repo);
+  if (owner.includes("/")) { const p = owner.split("/"); owner = p[0]; if (!repo) repo = p[1] || ""; }
+  if (repo.includes("/")) { const p = repo.split("/"); if (!owner) owner = p[0]; repo = p[1] || ""; }
+  return { owner, repo };
+}
 
 async function doLogin(){
-  const owner = $("#lpOwner").value.trim();
-  const repo  = $("#lpRepo").value.trim();
-  const t     = $("#lpToken").value.trim();
-  const msg   = $("#lpMsg");
+  if (loggingIn) return;
+  const cleaned = cleanRepoInput($("#lpOwner").value, $("#lpRepo").value);
+  const owner = cleaned.owner, repo = cleaned.repo;
+  const t = $("#lpToken").value.replace(/\s+/g, "");
+  const msg = $("#lpMsg");
   if (!owner || !repo || !t) { msg.style.color = ""; msg.textContent = "Please fill in all three boxes."; return; }
+
+  loggingIn = true;
   msg.style.color = "var(--muted)";
   msg.textContent = "Checking…";
   $("#lpGo").disabled = true;
+
+  const prev = { owner: CONFIG.owner, repo: CONFIG.repo, token };
   CONFIG.owner = owner; CONFIG.repo = repo; token = t;
   try {
     let r;
     try {
-      r = await fetch(`https://api.github.com/repos/${owner}/${repo}`, { headers: ghHeaders() });
+      r = await fetch(GH_API + "/repos/" + repoPath(), { headers: ghHeaders(), cache: "no-store" });
     } catch (e) {
       throw new Error("Can't reach GitHub. Your network (e.g. a work network) may be blocking api.github.com – try another network or device.");
     }
     if (r.status === 401) throw new Error("Token not accepted – it may be wrong, expired, or copied with missing characters.");
     if (r.status === 403) throw new Error("GitHub refused access (403). Check the token's permissions, or try again later.");
-    if (r.status === 404) throw new Error(`Repository "${owner}/${repo}" not found, or the token wasn't given access to it.`);
+    if (r.status === 404) throw new Error('Repository "' + owner + "/" + repo + "\" not found, or the token wasn't given access to it.");
     if (!r.ok) throw new Error("GitHub error " + r.status + ". Please try again.");
     const j = await r.json();
     if (j.permissions && j.permissions.push === false)
       throw new Error('This token can only read. Set Contents to "Read and write" when creating the token.');
-    localStorage.setItem("bs_token", token);
-    localStorage.setItem("bs_owner", owner);
-    localStorage.setItem("bs_repo", repo);
+
+    msg.textContent = "Loading your notes…";
     await loadFromGitHub();
+
+    store.set("bs_token", token);
+    store.set("bs_owner", owner);
+    store.set("bs_repo", repo);
+    loggingIn = false;
     closeLogin();
     setEditMode(true);
     setStatus("Editing");
   } catch (e) {
-    token = "";
+    CONFIG.owner = prev.owner; CONFIG.repo = prev.repo; token = prev.token;
     msg.style.color = "";
-    msg.textContent = e.message;
+    msg.textContent = e.message || "Login failed. Please try again.";
   } finally {
+    loggingIn = false;
     $("#lpGo").disabled = false;
   }
 }
 
 function logout(){
   if ((dirty || busy) && !confirm("You have unsaved changes. Log out anyway?")) return;
-  localStorage.removeItem("bs_token");
+  store.del("bs_token");
   token = "";
   pendingImages = [];
   renderPending();
@@ -1175,7 +1231,7 @@ function addFolder(){
 
 function deleteFolder(f){
   const n = state.notes.filter(x => x.folderId === f.id).length;
-  if (!confirm(`Delete folder "${f.name}"?` + (n ? `\nIts ${n} note(s) will move back to Loose notes.` : ""))) return;
+  if (!confirm('Delete folder "' + f.name + '"?' + (n ? "\nIts " + n + " note(s) will move back to Loose notes." : ""))) return;
   state.notes.forEach(x => { if (x.folderId === f.id) x.folderId = null; });
   state.folders = state.folders.filter(x => x.id !== f.id);
   changed();
@@ -1338,17 +1394,10 @@ function noteEl(n){
   return card;
 }
 
-/* CHANGED: edit-in-place – the note keeps its exact size and the text stays where it is.
-   1. The note's current height is locked before anything is swapped.
-   2. The editor has no padding/border, so the text doesn't move or shrink.
-   3. The formatting buttons replace the bottom tools row (which already takes up space),
-      so nothing is added above the text.
-   4. The editor fills all the spare space in the note and grows if you type more. */
 function editNote(card, n){
   const txtEl = card.querySelector(".note-text");
   if (!txtEl || card.classList.contains("is-editing")) return;
 
-  // 1. Measure BEFORE changing anything
   const cardH = card.getBoundingClientRect().height;
   const lineH = 14 * 1.45;
   const textH = n.text ? txtEl.getBoundingClientRect().height : lineH * 3;
@@ -1357,7 +1406,6 @@ function editNote(card, n){
   card.classList.add("is-editing");
   card.style.minHeight = Math.round(Math.max(cardH, n.h || 0)) + "px";
 
-  // 2. Editor goes exactly where the text was
   const ta = el("textarea", "note-edit");
   ta.value = n.text || "";
   ta.placeholder = "Type here… (paste images too)";
@@ -1365,7 +1413,6 @@ function editNote(card, n){
   txtEl.replaceWith(ta);
   attachMdKeys(ta);
 
-  // 3. Formatting buttons + Done replace the tools row contents
   const tools = card.querySelector(".note-tools");
   const doneBtn = el("button", "md-done", "Done");
   doneBtn.type = "button";
@@ -1377,13 +1424,12 @@ function editNote(card, n){
     tools.append(doneBtn);
   }
 
-  // 4. Size the editor: never smaller than the text it replaced, fills spare room, grows as you type
   const fit = () => {
     ta.style.flexGrow = "0";
     ta.style.height = "auto";
     const need = Math.max(Math.ceil(textH), ta.scrollHeight, lineH);
     ta.style.height = need + "px";
-    ta.style.flexGrow = "";                          // flex:1 lets it fill any extra space in the note
+    ta.style.flexGrow = "";
   };
   card._refit = fit;
   fit();
@@ -1452,7 +1498,7 @@ function folderEl(f, idx){
   );
   head.addEventListener("click", () => {
     collapsed[f.id] = !collapsed[f.id];
-    localStorage.setItem("bs_collapsed", JSON.stringify(collapsed));
+    store.set("bs_collapsed", JSON.stringify(collapsed));
     render();
   });
 
@@ -1528,45 +1574,52 @@ function render(){
 }
 
 /* ---------- Start up ---------- */
-$("#noteInput").before(mdToolbar($("#noteInput")));
-attachMdKeys($("#noteInput"));
-
-$("#authBtn").addEventListener("click", () => editMode ? logout() : login());
-$("#lpGo").addEventListener("click", doLogin);
+/* FIXED: login controls are wired up FIRST, so nothing else on the page can stop them from working */
+$("#authBtn").addEventListener("click", e => {
+  e.preventDefault();
+  if (editMode) logout(); else login();
+});
+$("#loginForm").addEventListener("submit", e => { e.preventDefault(); doLogin(); });
 $("#lpCancel").addEventListener("click", closeLogin);
 $("#loginPanel").addEventListener("click", e => { if (e.target.id === "loginPanel") closeLogin(); });
-$("#loginPanel").addEventListener("keydown", e => {
-  if (e.key === "Enter") doLogin();
-  if (e.key === "Escape") closeLogin();
-});
-$("#addNoteBtn").addEventListener("click", addNote);
-$("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
-$("#pickImagesBtn").addEventListener("click", () => pickImages(addToComposer));
-$("#addFolderBtn").addEventListener("click", addFolder);
-$("#folderInput").addEventListener("keydown", e => { if (e.key === "Enter") addFolder(); });
-$("#exportBtn").addEventListener("click", exportData);
-$("#lightbox").addEventListener("click", closeLightbox);
-$("#lightboxImg").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
-$("#lbPrev").addEventListener("click", e => { e.stopPropagation(); stepLightbox(-1); });
-$("#lbNext").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
-document.addEventListener("keydown", e => {
-  if (!$("#lightbox").classList.contains("open")) return;
-  if (e.key === "Escape") closeLightbox();
-  if (e.key === "ArrowLeft") stepLightbox(-1);
-  if (e.key === "ArrowRight") stepLightbox(1);
-});
-makeDropZone($("#looseZone"), () => null);
+$("#loginPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeLogin(); });
 
-document.addEventListener("paste", e => {
-  if (!editMode) return;
-  const t = e.target;
-  if (t.classList && (t.classList.contains("note-edit") || t.id === "folderInput")) return;
-  const files = imagesFromClipboard(e);
-  if (!files.length) return;
-  e.preventDefault();
-  addToComposer(files);
-  $("#noteInput").focus();
-});
+try {
+  $("#noteInput").before(mdToolbar($("#noteInput")));
+  attachMdKeys($("#noteInput"));
+
+  $("#addNoteBtn").addEventListener("click", addNote);
+  $("#noteInput").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) addNote(); });
+  $("#pickImagesBtn").addEventListener("click", () => pickImages(addToComposer));
+  $("#addFolderBtn").addEventListener("click", addFolder);
+  $("#folderInput").addEventListener("keydown", e => { if (e.key === "Enter") addFolder(); });
+  $("#exportBtn").addEventListener("click", exportData);
+  $("#lightbox").addEventListener("click", closeLightbox);
+  $("#lightboxImg").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+  $("#lbPrev").addEventListener("click", e => { e.stopPropagation(); stepLightbox(-1); });
+  $("#lbNext").addEventListener("click", e => { e.stopPropagation(); stepLightbox(1); });
+  document.addEventListener("keydown", e => {
+    if (!$("#lightbox").classList.contains("open")) return;
+    if (e.key === "Escape") closeLightbox();
+    if (e.key === "ArrowLeft") stepLightbox(-1);
+    if (e.key === "ArrowRight") stepLightbox(1);
+  });
+  makeDropZone($("#looseZone"), () => null);
+
+  document.addEventListener("paste", e => {
+    if (!editMode) return;
+    const t = e.target;
+    if (t.classList && (t.classList.contains("note-edit") || t.id === "folderInput")) return;
+    if (t.closest && t.closest("#loginPanel")) return;
+    const files = imagesFromClipboard(e);
+    if (!files.length) return;
+    e.preventDefault();
+    addToComposer(files);
+    $("#noteInput").focus();
+  });
+} catch (e) {
+  setStatus("Error: " + e.message);
+}
 
 (async function init(){
   await loadPublic();
@@ -1574,7 +1627,8 @@ document.addEventListener("paste", e => {
     try { await loadFromGitHub(); editMode = true; setStatus("Editing"); }
     catch (e) { setStatus("Viewing (login expired – click Owner login)"); }
   }
-  setEditMode(editMode);
+  try { setEditMode(editMode); }
+  catch (e) { setStatus("Error: " + e.message); }
 })();
 </script>
 </body>
