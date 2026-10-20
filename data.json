@@ -293,7 +293,8 @@
       "order": 0,
       "style": "blush",
       "span": 1,
-      "h": 200
+      "h": 200,
+      "color": "orange"
     },
     {
       "id": "mv6cw703e5cmv",
