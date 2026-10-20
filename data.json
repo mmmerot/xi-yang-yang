@@ -1,15 +1,15 @@
 {
   "folders": [
     {
-      "id": "munhgm88o89vl",
-      "name": "harvest moon",
-      "color": "green",
-      "isPublic": false
-    },
-    {
       "id": "munuiws9va62u",
       "name": "random ideas",
       "color": "yellow",
+      "isPublic": false
+    },
+    {
+      "id": "munhgm88o89vl",
+      "name": "harvest moon",
+      "color": "green",
       "isPublic": false
     },
     {
