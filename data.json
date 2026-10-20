@@ -370,7 +370,7 @@
     }
   ],
   "settings": {
-    "font": "mono",
+    "font": "Consolas",
     "size": 12,
     "styles": [
       {
