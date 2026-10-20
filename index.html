@@ -118,18 +118,27 @@
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  /* Image resize handle: subtle corner, shown only on hover */
-  .grip{position:absolute;right:3px;bottom:3px;width:12px;height:12px;z-index:2;
-        border-right:2px solid rgba(255,255,255,.95);border-bottom:2px solid rgba(255,255,255,.95);
-        border-bottom-right-radius:4px;filter:drop-shadow(0 0 1px rgba(0,0,0,.6));
-        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;transition:opacity .15s,border-color .15s}
-  .grip::before{content:"";position:absolute;inset:-6px}
-  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
-  .grip:hover,.thumb.resizing .grip,.grip:focus{border-color:var(--handle)}
-  @media (hover:none){ .grip{opacity:.8} }
-  .thumb.resizing img{border-color:var(--handle);box-shadow:0 0 0 1px var(--handle)}
-  .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
-            background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
+  /* Image resize handle: larger interaction area, shown only on hover */
+  .grip{position:absolute;right:0;bottom:0;width:30px;height:30px;z-index:30;
+        cursor:nwse-resize;touch-action:none;outline:none;opacity:0;border-radius:0 0 6px 0;
+        transition:opacity .15s,background-color .15s}
+  .grip::after{content:"";position:absolute;right:6px;bottom:6px;width:10px;height:10px;
+               border-right:2px solid rgba(255,255,255,.98);border-bottom:2px solid rgba(255,255,255,.98);
+               border-bottom-right-radius:3px;filter:drop-shadow(0 0 1px rgba(0,0,0,.75));
+               transition:border-color .15s,transform .15s}
+  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus-visible{opacity:1}
+  .grip:hover,.thumb.resizing .grip{background:linear-gradient(135deg,transparent 42%,rgba(0,0,0,.08) 43%,rgba(0,0,0,.16) 100%)}
+  .grip:hover::after,.thumb.resizing .grip::after,.grip:focus-visible::after{border-color:#fff;transform:scale(1.12)}
+  .grip:focus-visible{box-shadow:inset 0 0 0 2px var(--accent)}
+  .thumb.editable,.thumb.editable img,.thumb.editable .grip{-webkit-user-drag:none;user-select:none}
+  @media (hover:none){
+    .grip{opacity:.85;width:34px;height:34px}
+    .grip::after{right:7px;bottom:7px;width:11px;height:11px}
+  }
+  .thumb.resizing{z-index:20}
+  .thumb.resizing img{border-color:var(--handle);box-shadow:0 0 0 2px rgba(138,138,138,.28)}
+  .size-tag{position:absolute;left:50%;top:50%;z-index:31;transform:translate(-50%,-50%);pointer-events:none;
+            background:rgba(0,0,0,.75);color:#fff;font-size:11px;padding:3px 8px;border-radius:10px;display:none}
   .thumb.resizing .size-tag{display:block}
 
   .thumb .x{position:absolute;top:3px;right:3px;width:18px;height:18px;padding:0;border:none;border-radius:50%;
@@ -714,12 +723,22 @@ function makeGrip(wrap, box, img, done){
   const g = el("div", "grip");
   g.title = "Drag to resize image · double-click to reset";
   g.tabIndex = 0;
+  g.setAttribute("role", "slider");
+  g.setAttribute("aria-label", "Resize image");
+  g.setAttribute("aria-valuemin", "10");
+  g.setAttribute("aria-valuemax", "100");
+  g.draggable = false;
+  img.draggable = false;
+  wrap.draggable = false;
+
   const tag = wrap.querySelector(".size-tag");
   const MIN = 10, MAX = 100;
   const clamp = v => Math.round(Math.min(MAX, Math.max(MIN, v)) * 10) / 10;
   const apply = pct => {
     wrap.classList.add("custom");
     wrap.style.setProperty("--w", pct + "%");
+    g.setAttribute("aria-valuenow", Math.round(pct));
+    g.setAttribute("aria-valuetext", Math.round(pct) + "%");
     if (tag) tag.textContent = Math.round(pct) + "%";
   };
   const currentPct = () => {
@@ -729,68 +748,128 @@ function makeGrip(wrap, box, img, done){
   const reset = () => {
     wrap.classList.remove("custom");
     wrap.style.removeProperty("--w");
+    g.removeAttribute("aria-valuenow");
+    g.removeAttribute("aria-valuetext");
     done(null);
   };
 
-  g.addEventListener("dragstart", e => e.preventDefault());
-  g.addEventListener("mousedown", e => { e.stopPropagation(); e.preventDefault(); });
+  ["mousedown", "touchstart", "dragstart"].forEach(eventName => {
+    g.addEventListener(eventName, e => {
+      e.preventDefault();
+      e.stopPropagation();
+    }, { capture:true });
+  });
+
   g.addEventListener("pointerdown", e => {
-    if (e.button !== 0) return;
+    if (e.pointerType === "mouse" && e.button !== 0) return;
     e.preventDefault();
     e.stopPropagation();
+
     const card = box.closest(".note");
-    const wasDraggable = card && card.draggable;
-    if (card) card.draggable = false;
-    g.setPointerCapture(e.pointerId);
+    const wasDraggable = card ? card.draggable : false;
+    if (card) {
+      card.draggable = false;
+      card.classList.add("image-adjusting");
+    }
+
+    try { g.setPointerCapture(e.pointerId); } catch (err) {}
 
     const startX = e.clientX, startY = e.clientY;
-    const W = wrap.getBoundingClientRect().width || 1;
-    const H = img.getBoundingClientRect().height || W;
+    const startRect = wrap.getBoundingClientRect();
+    const imageRect = img.getBoundingClientRect();
+    const W = startRect.width || 1;
+    const H = imageRect.height || W;
     const boxW = box.getBoundingClientRect().width || 1;
     const hadCustom = wrap.classList.contains("custom");
     const oldW = wrap.style.getPropertyValue("--w");
+
     wrap.classList.add("resizing");
     beginDragCursor("nwse-resize");
-    let pct = null, raf = 0, last = e;
+
+    let pct = null, raf = 0, last = e, finished = false;
     const lastTap = g._lastTap || 0;
 
     const update = () => {
       raf = 0;
       const dx = last.clientX - startX, dy = last.clientY - startY;
-      if (pct == null && Math.hypot(dx, dy) < 3) return;
+      const threshold = e.pointerType === "touch" ? 7 : 3;
+      if (pct == null && Math.hypot(dx, dy) < threshold) return;
       const t = ((W + dx) * W + (H + dy) * H) / (W * W + H * H);
       let p = clamp(W * t / boxW * 100);
       if (p >= 97) p = 100;
       pct = p;
       apply(p);
     };
-    const move = ev => { last = ev; if (!raf) raf = requestAnimationFrame(update); };
-    const up = () => {
-      if (raf) { cancelAnimationFrame(raf); update(); }
-      g.removeEventListener("pointermove", move);
-      g.removeEventListener("pointerup", up);
-      g.removeEventListener("pointercancel", up);
+    const move = ev => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      last = ev;
+      if (!raf) raf = requestAnimationFrame(update);
+    };
+    const finish = commit => {
+      if (finished) return;
+      finished = true;
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+        if (commit) update();
+      }
+      window.removeEventListener("pointermove", move, true);
+      window.removeEventListener("pointerup", onUp, true);
+      window.removeEventListener("pointercancel", onCancel, true);
+      window.removeEventListener("blur", onBlur);
+      window.removeEventListener("keydown", onKey, true);
       wrap.classList.remove("resizing");
       endDragCursor();
-      if (card) card.draggable = wasDraggable;
+      try {
+        if (g.hasPointerCapture(e.pointerId)) g.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+      requestAnimationFrame(() => {
+        if (card) {
+          card.classList.remove("image-adjusting");
+          card.draggable = card.classList.contains("is-editing") ? false : wasDraggable;
+        }
+      });
+      if (!commit) {
+        if (!hadCustom) { wrap.classList.remove("custom"); wrap.style.removeProperty("--w"); }
+        else { wrap.classList.add("custom"); wrap.style.setProperty("--w", oldW); }
+        return;
+      }
       if (pct == null) {
         if (!hadCustom) { wrap.classList.remove("custom"); wrap.style.removeProperty("--w"); }
-        else wrap.style.setProperty("--w", oldW);
+        else { wrap.classList.add("custom"); wrap.style.setProperty("--w", oldW); }
         const now = Date.now();
         g._lastTap = now;
         if (now - lastTap < 350) { g._lastTap = 0; reset(); }
         return;
       }
       wrap.dataset.justResized = 1;
-      setTimeout(() => delete wrap.dataset.justResized, 300);
+      setTimeout(() => delete wrap.dataset.justResized, 350);
       done(pct);
+      const note = wrap.closest(".note");
+      if (note) queuePack(note);
     };
-    g.addEventListener("pointermove", move);
-    g.addEventListener("pointerup", up);
-    g.addEventListener("pointercancel", up);
+    const onUp = ev => { ev.preventDefault(); ev.stopPropagation(); finish(true); };
+    const onCancel = ev => { ev.preventDefault(); ev.stopPropagation(); finish(false); };
+    const onBlur = () => finish(false);
+    const onKey = ev => {
+      if (ev.key === "Escape") { ev.preventDefault(); ev.stopPropagation(); finish(false); }
+    };
+    window.addEventListener("pointermove", move, { capture:true, passive:false });
+    window.addEventListener("pointerup", onUp, { capture:true, passive:false });
+    window.addEventListener("pointercancel", onCancel, { capture:true, passive:false });
+    window.addEventListener("blur", onBlur);
+    window.addEventListener("keydown", onKey, true);
+  }, { passive:false });
+
+  g.addEventListener("click", e => { e.preventDefault(); e.stopPropagation(); });
+  g.addEventListener("dblclick", e => {
+    e.preventDefault();
+    e.stopPropagation();
+    reset();
+    const note = wrap.closest(".note");
+    if (note) queuePack(note);
   });
-  g.addEventListener("click", e => e.stopPropagation());
-  g.addEventListener("dblclick", e => { e.stopPropagation(); reset(); });
   g.addEventListener("keydown", e => {
     const step = { ArrowRight: 5, ArrowUp: 5, ArrowLeft: -5, ArrowDown: -5 }[e.key];
     if (step) {
@@ -798,9 +877,13 @@ function makeGrip(wrap, box, img, done){
       const p = clamp(currentPct() + step);
       apply(p);
       done(p);
+      const note = wrap.closest(".note");
+      if (note) queuePack(note);
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault(); e.stopPropagation();
       reset();
+      const note = wrap.closest(".note");
+      if (note) queuePack(note);
     }
   });
   return g;
@@ -1501,6 +1584,15 @@ function noteEl(n){
 
   card.draggable = true;
   card.addEventListener("dragstart", e => {
+    const blockedTarget = e.target.closest(
+      ".grip, .thumb, .rz, button, select, textarea, input, a, .note-style"
+    );
+    if (blockedTarget || card.classList.contains("image-adjusting") ||
+        card.classList.contains("resizing") || card.classList.contains("is-editing")) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
     e.dataTransfer.setData("text/plain", n.id);
     e.dataTransfer.effectAllowed = "move";
     card.classList.add("dragging");
