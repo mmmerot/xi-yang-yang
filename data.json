@@ -35,6 +35,12 @@
       "name": "inspired",
       "color": "yellow",
       "isPublic": false
+    },
+    {
+      "id": "mvggyisnjwka4",
+      "name": "putrid",
+      "color": "red",
+      "isPublic": false
     }
   ],
   "notes": [
