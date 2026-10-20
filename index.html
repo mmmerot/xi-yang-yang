@@ -117,21 +117,17 @@
   .pending .thumb{width:70px}
   .pending .thumb img{height:70px;object-fit:cover}
 
-  /* Image resize handle: compact white curve on the bottom-right corner, large invisible grab area */
-  .grip{position:absolute;right:4px;bottom:4px;width:16px;height:16px;z-index:2;
-        border-right:3px solid #fff;border-bottom:3px solid #fff;
-        border-bottom-right-radius:9px;
-        filter:drop-shadow(0 0 1px rgba(0,0,0,.55));
+  /* Image resize handle: thick curved bracket hugging the bottom-right corner */
+  .grip{position:absolute;right:0;bottom:0;width:26px;height:26px;z-index:2;
+        border-right:5px solid #fff;border-bottom:5px solid #fff;
+        border-bottom-right-radius:14px;
+        filter:drop-shadow(0 0 1.5px rgba(0,0,0,.6)) drop-shadow(0 1px 3px rgba(0,0,0,.3));
         cursor:nwse-resize;touch-action:none;outline:none;opacity:0;
-        transition:opacity .15s,transform .15s;transform-origin:100% 100%}
-  .grip::before{content:"";position:absolute;inset:-10px -6px -6px -10px}
-  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:.85}
-  .grip:hover,.thumb.resizing .grip,.grip:focus{opacity:1;transform:scale(1.15)}
-  @media (hover:none){ .grip{opacity:.85} }
-
-  /* Note reordering: drop indicator */
-  .note.drop-before{box-shadow:-4px 0 0 0 var(--accent)}
-  .note.drop-after{box-shadow:4px 0 0 0 var(--accent)}
+        transition:opacity .15s,border-color .15s,transform .15s;transform-origin:100% 100%}
+  .grip::before{content:"";position:absolute;inset:-10px -10px -10px -10px}
+  .thumb:hover .grip,.thumb.resizing .grip,.grip:focus{opacity:1}
+  .grip:hover,.thumb.resizing .grip,.grip:focus{border-color:var(--accent);transform:scale(1.12)}
+  @media (hover:none){ .grip{opacity:.9;width:30px;height:30px} }
   .thumb.resizing img{border-color:var(--handle);box-shadow:0 0 0 1px var(--handle)}
   .size-tag{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);pointer-events:none;
             background:rgba(0,0,0,.7);color:#fff;font-size:11px;padding:2px 7px;border-radius:10px;display:none}
@@ -232,7 +228,7 @@
       <select id="noteTarget"></select>
       <button id="pickImagesBtn" title="Choose one or more images from your computer">Add images</button>
       <button id="addNoteBtn">Add note</button>
-      <span class="hint">**bold** · *italic* · ~~strike~~ · "- " or "1. " for lists · drag a note onto another note to reorder · drag a note's edge or corner to resize</span>
+      <span class="hint">**bold** · *italic* · ~~strike~~ · "- " or "1. " for lists · drag a note's edge or corner to resize</span>
     </div>
   </div>
 
@@ -1295,44 +1291,6 @@ async function addNote(){
   }
 }
 
-/* ---------- Note ordering ----------
-   Notes with a saved "order" follow that order; notes that were never moved
-   keep the old behaviour (newest first) and appear before ordered notes. */
-const noteKey = n => (typeof n.order === "number") ? n.order : -n.created;
-const byOrder = (a, b) => noteKey(a) - noteKey(b);
-const sameGroup = (a, b) => (a || null) === (b || null);
-let dragNoteId = null;
-
-function groupNotes(folderId){
-  const ids = new Set(state.folders.map(f => f.id));
-  return state.notes.filter(n => folderId ? n.folderId === folderId
-                                          : (!n.folderId || !ids.has(n.folderId))).sort(byOrder);
-}
-function renumber(list){ list.forEach((n, i) => { n.order = i; }); }
-
-function reorderNote(dragId, targetId, after){
-  if (!dragId || dragId === targetId) return;
-  const moving = state.notes.find(x => x.id === dragId);
-  const target = state.notes.find(x => x.id === targetId);
-  if (!moving || !target) return;
-  moving.folderId = target.folderId || null;
-  const list = groupNotes(moving.folderId).filter(x => x.id !== dragId);
-  const t = list.findIndex(x => x.id === targetId);
-  list.splice(t + (after ? 1 : 0), 0, moving);
-  renumber(list);
-  changed();
-}
-
-function moveNoteToEnd(id, folderId){
-  const n = state.notes.find(x => x.id === id);
-  if (!n) return;
-  n.folderId = folderId || null;
-  const list = groupNotes(n.folderId).filter(x => x.id !== id);
-  list.push(n);
-  renumber(list);
-  changed();
-}
-
 function moveNote(id, folderId){
   const n = state.notes.find(x => x.id === id);
   if (!n || (n.folderId || null) === (folderId || null)) return;
@@ -1470,7 +1428,7 @@ function makeDropZone(zone, getFolderId){
       return;
     }
     const id = e.dataTransfer.getData("text/plain");
-    if (id) moveNoteToEnd(id, getFolderId());
+    if (id) moveNote(id, getFolderId());
   });
 }
 
@@ -1524,42 +1482,7 @@ function noteEl(n){
     e.dataTransfer.effectAllowed = "move";
     card.classList.add("dragging");
   });
-  card.addEventListener("dragend", () => {
-    card.classList.remove("dragging");
-    dragNoteId = null;
-    document.querySelectorAll(".note.drop-before,.note.drop-after")
-      .forEach(x => x.classList.remove("drop-before", "drop-after"));
-  });
-  card.addEventListener("dragstart", () => { dragNoteId = n.id; });
-
-  /* Drop another note onto this one to place it before/after this note */
-  card.addEventListener("dragover", e => {
-    if (!dragNoteId || dragNoteId === n.id || isFolderDrag(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = "move";
-    const zone = card.closest(".folder, .zone");
-    if (zone) zone.classList.remove("over");
-    const r = card.getBoundingClientRect();
-    const after = e.clientX > r.left + r.width / 2;
-    card.classList.toggle("drop-after", after);
-    card.classList.toggle("drop-before", !after);
-  });
-  card.addEventListener("dragleave", e => {
-    if (!card.contains(e.relatedTarget)) card.classList.remove("drop-before", "drop-after");
-  });
-  card.addEventListener("drop", e => {
-    if (!dragNoteId || isFolderDrag(e)) return;
-    e.preventDefault();
-    e.stopPropagation();
-    const after = card.classList.contains("drop-after");
-    card.classList.remove("drop-before", "drop-after");
-    const zone = card.closest(".folder, .zone");
-    if (zone) zone.classList.remove("over");
-    const id = e.dataTransfer.getData("text/plain") || dragNoteId;
-    dragNoteId = null;
-    reorderNote(id, n.id, after);
-  });
+  card.addEventListener("dragend", () => card.classList.remove("dragging"));
 
   const move = el("select");
   move.title = "Move to folder";
@@ -1690,7 +1613,7 @@ function folderEl(f, idx){
   box.style.setProperty("--c", hex);
   box.style.setProperty("--tint", hex + "12");
 
-  const notes = (!editMode && !f.isPublic) ? [] : state.notes.filter(n => n.folderId === f.id).sort(byOrder);
+  const notes = (!editMode && !f.isPublic) ? [] : state.notes.filter(n => n.folderId === f.id).sort((a, b) => b.created - a.created);
 
   const head = el("div", "folder-head");
   if (editMode) {
@@ -1767,7 +1690,7 @@ function render(){
   const folderIds = new Set(state.folders.map(f => f.id));
   const loose = editMode ? state.notes
     .filter(n => !n.folderId || !folderIds.has(n.folderId))
-    .sort(byOrder) : [];
+    .sort((a, b) => b.created - a.created) : [];
   const lg = $("#looseGrid");
   lg.innerHTML = "";
   loose.forEach(n => lg.appendChild(noteEl(n)));
