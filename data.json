@@ -347,7 +347,10 @@
       "updated": 1791876671307,
       "order": -3,
       "style": "plain",
-      "span": 1
+      "span": 1,
+      "imgSizes": {
+        "images/mv6cw504c7uyw.jpg": 34.2
+      }
     },
     {
       "id": "mv9luxcn0gn8x",
