@@ -213,6 +213,63 @@
   button.visibility-toggle.is-public:hover{background:rgba(0,144,255,.16)}
   .public-label{color:var(--accent);font-size:11px;font-weight:600}
   body:not(.editing) #looseSection{display:none}
+
+  /* NEW: visitor preview – only the first two lines of text show until the visitor expands the note */
+  .note.clamped .note-text{max-height:2.9em;overflow:hidden;
+                           -webkit-mask-image:linear-gradient(180deg,#000 55%,transparent);
+                           mask-image:linear-gradient(180deg,#000 55%,transparent)}
+  .reveal-btn{align-self:flex-start;border:none;background:none;padding:0;font-size:12px;font-weight:600;
+              color:#c2410c;cursor:pointer}
+  .reveal-btn:hover{background:none;text-decoration:underline}
+  .note:not(.clamped) .reveal-btn{color:var(--muted)}
+
+  /* NEW: spoiler warning pop-up */
+  .spoiler-box{text-align:center;align-items:center}
+  .spoiler-box .spoil-icon{font-size:30px;line-height:1}
+  .spoiler-box h3{font-size:16px}
+  .spoiler-box p{margin:0;font-size:13px;color:#555}
+  .login-box label.spoil-skip{flex-direction:row;align-items:center;gap:6px;color:var(--muted);cursor:pointer}
+  .spoiler-box .row{justify-content:center;width:100%}
+  #spoilGo{background:#c2410c;border-color:#c2410c;color:#fff;font-weight:600}
+  #spoilGo:hover{background:#a8370a;border-color:#a8370a}
+
+  /* NEW: Notes / Bookshelf switch (visitors only) */
+  .view-toggle{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+  body.editing .view-toggle{display:none !important}
+  .view-toggle button{border:none;border-radius:0;padding:6px 12px;background:#fff;color:var(--muted)}
+  .view-toggle button + button{border-left:1px solid var(--line)}
+  .view-toggle button.on{background:#f1f1f1;color:var(--text);font-weight:600}
+
+  /* NEW: Bookshelf view – covers sit on a wooden ledge */
+  .shelf{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:22px 16px;padding:8px 4px 4px}
+  .book{display:flex;flex-direction:column;gap:8px;border:none;background:none;padding:0;text-align:left;
+        cursor:pointer;min-width:0;position:relative}
+  .book:hover{background:none}
+  .book-cover{position:relative;width:100%;aspect-ratio:2 / 3;border-radius:3px 6px 6px 3px;overflow:hidden;
+              background:var(--c,#bbb);
+              box-shadow:0 2px 6px rgba(0,0,0,.18),inset 5px 0 0 rgba(0,0,0,.14);
+              transition:transform .18s ease,box-shadow .18s ease}
+  .book-cover::after{content:"";position:absolute;inset:0;pointer-events:none;
+                     background:linear-gradient(90deg,rgba(0,0,0,.18) 0,rgba(255,255,255,.12) 4%,transparent 9%)}
+  .book-cover img{display:block;width:100%;height:100%;object-fit:cover}
+  .book-plain{display:flex;align-items:center;justify-content:center;height:100%;padding:12px 10px 12px 14px;
+              color:#fff;font-weight:700;font-size:13px;line-height:1.3;text-align:center;
+              text-shadow:0 1px 2px rgba(0,0,0,.35);overflow:hidden;overflow-wrap:anywhere}
+  .book-ledge{height:8px;margin:-4px -8px 0;border-radius:2px;
+              background:linear-gradient(180deg,#c9a77c,#a9845a);box-shadow:0 3px 4px rgba(0,0,0,.15)}
+  .book:hover .book-cover,.book:focus-visible .book-cover{transform:translateY(-5px);
+              box-shadow:0 8px 14px rgba(0,0,0,.22),inset 5px 0 0 rgba(0,0,0,.14)}
+  .book:focus-visible{outline:2px solid var(--accent);outline-offset:4px;border-radius:6px}
+  .book-title{font-size:12px;line-height:1.35;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;
+              -webkit-box-orient:vertical;overflow:hidden}
+
+  /* NEW: Reader pop-up – shows the full note after the spoiler warning */
+  .reader-box{position:relative;width:min(720px,94vw);max-height:88vh;overflow:auto;padding:28px 24px 20px;gap:12px}
+  .reader-close{position:absolute;top:8px;right:8px;font-size:16px}
+  .reader-box .thumbs .thumb{width:calc(50% - 3px)}
+  .reader-box .thumbs.one .thumb{width:100%}
+  .reader-box .note-text{font-size:calc(var(--ui-size) + 1px);line-height:1.6}
+  #lightbox{z-index:70}
 </style>
 </head>
 <body>
@@ -224,6 +281,10 @@
     <button class="edit-only" id="tidyBtn" title="Repack all notes to close any gaps">Tidy layout</button>
     <button class="edit-only" id="exportBtn" title="Download a backup copy of all notes">Export</button>
     <button type="button" class="edit-only" id="settingsBtn" title="Settings – change font and font size">⚙</button>
+    <div class="view-toggle" id="viewToggle" role="group" aria-label="Choose view">
+      <button type="button" data-view="notes" title="Show notes with two-line previews">Notes</button>
+      <button type="button" data-view="shelf" title="Show book covers only">Bookshelf</button>
+    </div>
     <button type="button" id="authBtn">Owner login</button>
   </div>
 </header>
@@ -285,6 +346,28 @@
       <button type="submit" id="setSave">Save</button>
     </div>
   </form>
+</div>
+
+<!-- NEW: spoiler warning pop-up (shown to visitors when they expand a note) -->
+<div class="login-panel" id="spoilerPanel">
+  <div class="login-box spoiler-box" role="dialog" aria-modal="true" aria-labelledby="spoilTitle">
+    <div class="spoil-icon">⚠️</div>
+    <h3 id="spoilTitle">Proceed with caution, major spoilers ahead!</h3>
+    <p>This note may reveal plot twists and endings. Continue only if you've read the book or don't mind spoilers.</p>
+    <label class="spoil-skip"><input type="checkbox" id="spoilSkip"> Don't warn me again during this visit</label>
+    <div class="row">
+      <button type="button" id="spoilCancel">Go back</button>
+      <button type="button" id="spoilGo">Show me anyway</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW: reader pop-up – opens a note from the bookshelf after the spoiler warning -->
+<div class="login-panel" id="readerPanel">
+  <div class="login-box reader-box" role="dialog" aria-modal="true" aria-label="Book note">
+    <button type="button" class="icon reader-close" id="readerClose" title="Close (Esc)">✕</button>
+    <div id="readerBody"></div>
+  </div>
 </div>
 
 <div class="lightbox" id="lightbox">
@@ -1554,6 +1637,134 @@ function makeDropZone(zone, getFolderId){
   });
 }
 
+/* ---------- NEW: Visitor spoiler preview ----------
+   Visitors (not logged in) see each note's images and the first two lines of text.
+   "Read more" opens a spoiler warning; the note only expands if they choose to continue.
+   Expanded notes stay open for the rest of the visit. The owner always sees full notes. */
+const expandedNotes = new Set();
+let spoilerSkip = false;
+try { spoilerSkip = sessionStorage.getItem("bs_spoiler_ok") === "1"; } catch (e) {}
+let spoilerAction = null;
+
+function askSpoiler(onYes){
+  if (spoilerSkip) { onYes(); return; }
+  spoilerAction = onYes;
+  $("#spoilSkip").checked = false;
+  $("#spoilerPanel").classList.add("open");
+  setTimeout(() => $("#spoilCancel").focus(), 0);
+}
+function closeSpoiler(){
+  spoilerAction = null;
+  $("#spoilerPanel").classList.remove("open");
+}
+function confirmSpoiler(){
+  const fn = spoilerAction;
+  if ($("#spoilSkip").checked) {
+    spoilerSkip = true;
+    try { sessionStorage.setItem("bs_spoiler_ok", "1"); } catch (e) {}
+  }
+  closeSpoiler();
+  if (fn) fn();
+}
+
+/* ---------- NEW: Bookshelf view ----------
+   Visitors can switch between "Notes" and "Bookshelf". The bookshelf shows each note as a cover
+   (its first image, or a coloured cover with the note's first line if it has no image).
+   Clicking a cover shows the spoiler warning first, then opens the full note in a reader pop-up. */
+let viewMode = store.get("bs_view") === "shelf" ? "shelf" : "notes";
+
+function setView(v){
+  viewMode = v === "shelf" ? "shelf" : "notes";
+  store.set("bs_view", viewMode);
+  render();
+}
+
+function bookTitle(n){
+  const line = (n.text || "").split("\n").find(l => l.trim()) || "";
+  return line.replace(/^\s*([-*+]|\d{1,9}[.)])\s+/, "").replace(/[*_~`\\]/g, "").trim() || "Untitled";
+}
+
+function bookEl(n){
+  const paths = n.images || [];
+  const title = bookTitle(n);
+  const b = el("button", "book");
+  b.type = "button";
+  b.title = title + " – open note";
+  const cover = el("div", "book-cover");
+  if (paths.length) {
+    const img = el("img");
+    img.src = localImg[paths[0]] || paths[0];
+    img.alt = title;
+    img.loading = "lazy";
+    img.draggable = false;
+    if (CONFIG.owner) {
+      const fb = rawUrl(paths[0]);
+      img.onerror = () => { if (!img.dataset.f) { img.dataset.f = 1; img.src = fb; } };
+    }
+    cover.appendChild(img);
+  } else {
+    cover.appendChild(el("div", "book-plain", title));
+  }
+  b.append(cover, el("div", "book-ledge"), el("div", "book-title", title));
+  b.addEventListener("click", e => {
+    e.stopPropagation();
+    askSpoiler(() => openReader(n));
+  });
+  return b;
+}
+
+function shelfEl(notes){
+  const shelf = el("div", "shelf");
+  notes.forEach(n => shelf.appendChild(bookEl(n)));
+  return shelf;
+}
+
+function openReader(n){
+  expandedNotes.add(n.id);
+  const body = $("#readerBody");
+  body.innerHTML = "";
+  const paths = n.images || [];
+  const imgs = el("div", "thumbs");
+  fillThumbs(imgs, paths.map(p => localImg[p] || p), null,
+             CONFIG.owner ? paths.map(rawUrl) : null,
+             { widths: paths.map(p => (n.imgSizes || {})[p]) });
+  const txt = el("div", "note-text");
+  if (n.text) txt.append(renderMarkdown(n.text));
+  body.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
+  $("#readerPanel").classList.add("open");
+  $(".reader-box").scrollTop = 0;
+  setTimeout(() => $("#readerClose").focus(), 0);
+}
+function closeReader(){ $("#readerPanel").classList.remove("open"); }
+
+function addSpoilerPreview(card, txt, n){
+  const MORE = "Read more (spoilers) ▾", LESS = "Show less ▴";
+  const open = expandedNotes.has(n.id);
+  if (!open) card.classList.add("clamped");
+  const btn = el("button", "reveal-btn", open ? LESS : MORE);
+  btn.type = "button";
+  btn.addEventListener("click", e => {
+    e.stopPropagation();
+    if (card.classList.contains("clamped")) {
+      askSpoiler(() => {
+        expandedNotes.add(n.id);
+        card.classList.remove("clamped");
+        btn.textContent = LESS;
+      });
+    } else {
+      expandedNotes.delete(n.id);
+      card.classList.add("clamped");
+      btn.textContent = MORE;
+    }
+  });
+  txt.after(btn);
+  /* Short notes (two lines or fewer) don't need a "Read more" button */
+  requestAnimationFrame(() => {
+    if (!card.classList.contains("clamped") || !txt.clientHeight) return;
+    if (txt.scrollHeight <= txt.clientHeight + 2) { card.classList.remove("clamped"); btn.remove(); }
+  });
+}
+
 /* ---------- Rendering ---------- */
 function swatchRow(current, onPick){
   const wrap = el("div", "swatches");
@@ -1598,7 +1809,10 @@ function noteEl(n){
   card.append(imgs, txt, el("div", "note-meta", fmtDate(n.updated || n.created)));
   noteThumbs(imgs, n);
   if (noteRO) noteRO.observe(card);
-  if (!editMode) return card;
+  if (!editMode) {
+    if (n.text) addSpoilerPreview(card, txt, n);
+    return card;
+  }
 
   card.draggable = true;
   card.addEventListener("dragstart", e => {
@@ -1840,7 +2054,8 @@ function folderEl(f, idx){
   const grid = el("div", "grid");
   grid.dataset.group = f.id;
   notes.forEach(n => grid.appendChild(noteEl(n)));
-  body.appendChild(notes.length ? grid : el("div", "empty", editMode ? "Empty – drag notes here" : "Empty"));
+  if (!editMode && viewMode === "shelf" && notes.length) body.appendChild(shelfEl(notes));
+  else body.appendChild(notes.length ? grid : el("div", "empty", editMode ? "Empty – drag notes here" : "Empty"));
 
   box.append(head, body);
   makeDropZone(box, () => f.id);
@@ -1860,6 +2075,12 @@ function render(){
   lg.innerHTML = "";
   loose.forEach(n => lg.appendChild(noteEl(n)));
   if (!loose.length) lg.appendChild(el("div", "empty", editMode ? "No loose notes – drop a note here to unfile it" : "No loose notes"));
+
+  document.querySelectorAll("#viewToggle button").forEach(b => {
+    const on = b.dataset.view === viewMode;
+    b.classList.toggle("on", on);
+    b.setAttribute("aria-pressed", String(on));
+  });
 
   const fw = $("#folders");
   fw.innerHTML = "";
@@ -1895,6 +2116,21 @@ $("#settingsPanel").addEventListener("keydown", e => { if (e.key === "Escape") c
 $("#lpCancel").addEventListener("click", closeLogin);
 $("#loginPanel").addEventListener("click", e => { if (e.target.id === "loginPanel") closeLogin(); });
 $("#loginPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeLogin(); });
+
+/* NEW: bookshelf + reader controls */
+document.querySelectorAll("#viewToggle button").forEach(b =>
+  b.addEventListener("click", () => setView(b.dataset.view)));
+$("#readerClose").addEventListener("click", closeReader);
+$("#readerPanel").addEventListener("click", e => { if (e.target.id === "readerPanel") closeReader(); });
+$("#readerPanel").addEventListener("keydown", e => {
+  if (e.key === "Escape" && !$("#lightbox").classList.contains("open")) closeReader();
+});
+
+/* NEW: spoiler pop-up controls */
+$("#spoilGo").addEventListener("click", confirmSpoiler);
+$("#spoilCancel").addEventListener("click", closeSpoiler);
+$("#spoilerPanel").addEventListener("click", e => { if (e.target.id === "spoilerPanel") closeSpoiler(); });
+$("#spoilerPanel").addEventListener("keydown", e => { if (e.key === "Escape") closeSpoiler(); });
 
 try {
   $("#noteInput").before(mdToolbar($("#noteInput")));
