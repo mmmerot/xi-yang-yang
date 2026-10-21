@@ -344,16 +344,14 @@
       "images": [
         "images/mvgr4ibms33qo.jpg",
         "images/mvgrqr59wf57k.gif",
-        "images/mvhftrcqnz140.png",
-        "images/mvhfxbjdwvq9x.jpg"
+        "images/mvhftrcqnz140.png"
       ],
       "folderId": "munuiws9va62u",
       "created": 1792504885278,
-      "updated": 1792546555218,
+      "updated": 1792546563328,
       "imgSizes": {
         "images/mvgr4ibms33qo.jpg": 100,
-        "images/mvgrqr59wf57k.gif": 59.4,
-        "images/mvhfxbjdwvq9x.jpg": 96.2
+        "images/mvgrqr59wf57k.gif": 59.4
       },
       "span": 1,
       "h": 673
